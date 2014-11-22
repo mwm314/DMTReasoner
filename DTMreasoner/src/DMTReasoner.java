@@ -22,8 +22,31 @@ import org.semanticweb.owlapi.reasoner.OWLReasoner;
 import org.semanticweb.owlapi.util.Version;
 
 
-public class DTMreasoner implements OWLReasoner {
-
+public class DMTReasoner implements OWLReasoner {
+	//List of class variables
+	/**
+	 * The ontology we are reasoning over
+	 */
+	private OWLOntology ontology;
+	
+	/**
+	 * Our bottom class node
+	 */
+	private Node<OWLClass> bottomClass;
+	
+	/**
+	 * Our top class node
+	 */
+	private Node<OWLClass> topClass;
+	
+	/**
+	 * Constructor for DMTReasoner
+	 */
+	DMTReasoner(OWLOntology ontology) {
+		this.ontology = ontology;
+		bottomClass = new BottomClassNode();
+	}
+	
 	@Override
 	public void dispose() {
 		// TODO Auto-generated method stub
@@ -39,7 +62,7 @@ public class DTMreasoner implements OWLReasoner {
 	@Override
 	public Node<OWLClass> getBottomClassNode() {
 		// TODO Auto-generated method stub
-		return null;
+		return bottomClass;
 	}
 
 	@Override
@@ -61,62 +84,62 @@ public class DTMreasoner implements OWLReasoner {
 	}
 
 	@Override
-	public NodeSet<OWLClass> getDataPropertyDomains(OWLDataProperty arg0,
+	public NodeSet<OWLClass> getDataPropertyDomains(OWLDataProperty dataProperty,
 			boolean arg1) {
 		// TODO Auto-generated method stub
 		return null;
 	}
 
 	@Override
-	public Set<OWLLiteral> getDataPropertyValues(OWLNamedIndividual arg0,
-			OWLDataProperty arg1) {
+	public Set<OWLLiteral> getDataPropertyValues(OWLNamedIndividual individual,
+			OWLDataProperty dataProperty) {
 		// TODO Auto-generated method stub
 		return null;
 	}
 
 	@Override
 	public NodeSet<OWLNamedIndividual> getDifferentIndividuals(
-			OWLNamedIndividual arg0) {
+			OWLNamedIndividual individual) {
 		// TODO Auto-generated method stub
 		return null;
 	}
 
 	@Override
-	public NodeSet<OWLClass> getDisjointClasses(OWLClassExpression arg0) {
+	public NodeSet<OWLClass> getDisjointClasses(OWLClassExpression owlClassExpr) {
 		// TODO Auto-generated method stub
 		return null;
 	}
 
 	@Override
 	public NodeSet<OWLDataProperty> getDisjointDataProperties(
-			OWLDataPropertyExpression arg0) {
+			OWLDataPropertyExpression dataPropExpr) {
 		// TODO Auto-generated method stub
 		return null;
 	}
 
 	@Override
 	public NodeSet<OWLObjectPropertyExpression> getDisjointObjectProperties(
-			OWLObjectPropertyExpression arg0) {
+			OWLObjectPropertyExpression objectPropExpr) {
 		// TODO Auto-generated method stub
 		return null;
 	}
 
 	@Override
-	public Node<OWLClass> getEquivalentClasses(OWLClassExpression arg0) {
+	public Node<OWLClass> getEquivalentClasses(OWLClassExpression classExpr) {
 		// TODO Auto-generated method stub
 		return null;
 	}
 
 	@Override
 	public Node<OWLDataProperty> getEquivalentDataProperties(
-			OWLDataProperty arg0) {
+			OWLDataProperty dataProp) {
 		// TODO Auto-generated method stub
 		return null;
 	}
 
 	@Override
 	public Node<OWLObjectPropertyExpression> getEquivalentObjectProperties(
-			OWLObjectPropertyExpression arg0) {
+			OWLObjectPropertyExpression objectPropExpr) {
 		// TODO Auto-generated method stub
 		return null;
 	}
@@ -195,7 +218,7 @@ public class DTMreasoner implements OWLReasoner {
 	@Override
 	public String getReasonerName() {
 		// TODO Auto-generated method stub
-		return null;
+		return "Dan,Matt,Tyler Reasoner.";
 	}
 
 	@Override

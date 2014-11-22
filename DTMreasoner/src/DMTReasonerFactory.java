@@ -21,8 +21,7 @@ public class DMTReasonerFactory implements OWLReasonerFactory {
 
 	@Override
 	public OWLReasoner createReasoner(OWLOntology ontology) {
-		// TODO Auto-generated method stub
-		return null;
+		return new DMTReasoner(ontology);
 	}
 
 	@Override
