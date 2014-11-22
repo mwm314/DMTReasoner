@@ -19,6 +19,7 @@ import org.semanticweb.owlapi.reasoner.InferenceType;
 import org.semanticweb.owlapi.reasoner.Node;
 import org.semanticweb.owlapi.reasoner.NodeSet;
 import org.semanticweb.owlapi.reasoner.OWLReasoner;
+import org.semanticweb.owlapi.reasoner.impl.OWLClassNode;
 import org.semanticweb.owlapi.util.Version;
 
 
@@ -32,19 +33,18 @@ public class DMTReasoner implements OWLReasoner {
 	/**
 	 * Our bottom class node
 	 */
-	private Node<OWLClass> bottomClass;
+	private Node<OWLClass> bottomConcept = OWLClassNode.getBottomNode();
 	
 	/**
 	 * Our top class node
 	 */
-	private Node<OWLClass> topClass;
+	private Node<OWLClass> topConcept = OWLClassNode.getTopNode();
 	
 	/**
 	 * Constructor for DMTReasoner
 	 */
 	DMTReasoner(OWLOntology ontology) {
 		this.ontology = ontology;
-		bottomClass = new BottomClassNode();
 	}
 	
 	@Override
@@ -62,7 +62,7 @@ public class DMTReasoner implements OWLReasoner {
 	@Override
 	public Node<OWLClass> getBottomClassNode() {
 		// TODO Auto-generated method stub
-		return bottomClass;
+		return bottomConcept;
 	}
 
 	@Override
