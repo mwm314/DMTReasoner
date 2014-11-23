@@ -1,7 +1,13 @@
+import java.io.File;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
 
+import org.jgraph.graph.DefaultEdge;
+import org.jgrapht.experimental.dag.*;
+import org.semanticweb.owlapi.apibinding.OWLManager;
+import org.semanticweb.owlapi.change.OntologyAnnotationChangeData;
 import org.semanticweb.owlapi.model.AxiomType;
 import org.semanticweb.owlapi.model.OWLAxiom;
 import org.semanticweb.owlapi.model.OWLClass;
@@ -9,12 +15,15 @@ import org.semanticweb.owlapi.model.OWLClassExpression;
 import org.semanticweb.owlapi.model.OWLDataProperty;
 import org.semanticweb.owlapi.model.OWLDataPropertyExpression;
 import org.semanticweb.owlapi.model.OWLException;
+import org.semanticweb.owlapi.model.OWLIndividual;
 import org.semanticweb.owlapi.model.OWLLiteral;
 import org.semanticweb.owlapi.model.OWLNamedIndividual;
+import org.semanticweb.owlapi.model.OWLObjectProperty;
 import org.semanticweb.owlapi.model.OWLObjectPropertyExpression;
 import org.semanticweb.owlapi.model.OWLOntology;
 import org.semanticweb.owlapi.model.OWLOntologyChange;
 import org.semanticweb.owlapi.model.OWLOntologyChangeListener;
+import org.semanticweb.owlapi.model.OWLOntologyManager;
 import org.semanticweb.owlapi.reasoner.BufferingMode;
 import org.semanticweb.owlapi.reasoner.FreshEntityPolicy;
 import org.semanticweb.owlapi.reasoner.IndividualNodeSetPolicy;
@@ -22,9 +31,7 @@ import org.semanticweb.owlapi.reasoner.InferenceType;
 import org.semanticweb.owlapi.reasoner.Node;
 import org.semanticweb.owlapi.reasoner.NodeSet;
 import org.semanticweb.owlapi.reasoner.OWLReasoner;
-import org.semanticweb.owlapi.reasoner.impl.OWLClassNode;
-import org.semanticweb.owlapi.reasoner.impl.OWLDataPropertyNode;
-import org.semanticweb.owlapi.reasoner.impl.OWLObjectPropertyNode;
+import org.semanticweb.owlapi.reasoner.impl.OWLNamedIndividualNodeSet;
 import org.semanticweb.owlapi.util.Version;
 
 public class DMTReasoner implements OWLReasoner, OWLOntologyChangeListener {
@@ -33,22 +40,36 @@ public class DMTReasoner implements OWLReasoner, OWLOntologyChangeListener {
      * The ontology we are reasoning over
      */
     private OWLOntology ontology;
+    
+    //DAGS for our class and property hierarchies? See here for why we may need them: http://owlapi.sourceforge.net/javadoc/org/semanticweb/owlapi/reasoner/OWLReasoner.html
+    //private DirectedAcyclicGraph<Node<OWLClass>, DefaultEdge> classNodeHierarchy = new DirectedAcyclicGraph<Node<OWLClass>, DefaultEdge>(DefaultEdge.class);
+    //private DirectedAcyclicGraph<Node<OWLDataProperty>, DefaultEdge> dataPropertyNodeHierarchy = new DirectedAcyclicGraph<Node<OWLDataProperty>, DefaultEdge>(DefaultEdge.class);
+    //private DirectedAcyclicGraph<Node<OWLObjectProperty>, DefaultEdge> objectPropertyNodeHierarchy = new DirectedAcyclicGraph<Node<OWLObjectProperty>, DefaultEdge>(DefaultEdge.class);
+    
+    //A NodeSet representing the individuals
+    private OWLNamedIndividualNodeSet individuals = new OWLNamedIndividualNodeSet();
 
+    //God only knows what this does
     private BufferingMode bufferingMode = BufferingMode.BUFFERING;
 
+    //Axioms added
     private Set<OWLAxiom> additions = new HashSet<OWLAxiom>();
 
+    //Axioms removed
     private Set<OWLAxiom> removals = new HashSet<OWLAxiom>();
     
+    //Given axioms from the ontology
     private Set<OWLAxiom> axioms;
     
-    private OWLClassNode bottomClassNode = OWLClassNode.getBottomNode();
+    
+    //These have to be attached to a hierarchy of some kind
+    /*private OWLClassNode bottomClassNode = OWLClassNode.getBottomNode();
     private OWLDataPropertyNode bottomDataPropertyNode = OWLDataPropertyNode.getBottomNode();
     private OWLObjectPropertyNode bottomObjectPropertyNode = OWLObjectPropertyNode.getBottomNode();
 
     private OWLClassNode topClassNode = OWLClassNode.getTopNode();
     private OWLDataPropertyNode topDataPropertyNode = OWLDataPropertyNode.getTopNode();
-    private OWLObjectPropertyNode topObjectPropertyNode = OWLObjectPropertyNode.getTopNode();
+    private OWLObjectPropertyNode topObjectPropertyNode = OWLObjectPropertyNode.getTopNode();*/
 
     /**
      * Constructor for DMTReasoner
@@ -61,7 +82,7 @@ public class DMTReasoner implements OWLReasoner, OWLOntologyChangeListener {
     @Override
     public void dispose() {
         // TODO Auto-generated method stub
-
+    	
     }
 
     @Override
@@ -72,25 +93,30 @@ public class DMTReasoner implements OWLReasoner, OWLOntologyChangeListener {
         for(OWLAxiom i : additions){
             axioms.add(i);
         }
+        
 
     }
 
     @Override
+    /**
+     * Returns the bottom class node from our classNodeSet hierarchy
+     * @return
+     */
     public Node<OWLClass> getBottomClassNode() {
-        // TODO Auto-generated method stub
-        return bottomClassNode;
+    	// TODO Auto-generated method stub
+        return null;
     }
 
     @Override
     public Node<OWLDataProperty> getBottomDataPropertyNode() {
-        // TODO Auto-generated method stub
-        return bottomDataPropertyNode;
+    	// TODO Auto-generated method stub
+        return null;
     }
 
     @Override
     public Node<OWLObjectPropertyExpression> getBottomObjectPropertyNode() {
-        // TODO Auto-generated method stub
-        return bottomObjectPropertyNode;
+    	// TODO Auto-generated method stub
+        return null;
     }
 
     @Override
@@ -113,10 +139,24 @@ public class DMTReasoner implements OWLReasoner, OWLOntologyChangeListener {
     }
 
     @Override
+    /**
+     * Individuals are represented by the individuals node set. We return the NodeSet of all individual Nodes
+     * except for the node with the given individual. Same individuals are located in the same node.
+     * Returns null if the individual is not anywhere in the NodeSet of individuals
+     * @param individual
+     * @return
+     */
     public NodeSet<OWLNamedIndividual> getDifferentIndividuals(
             OWLNamedIndividual individual) {
-        // TODO Auto-generated method stub
-        return null;
+    	Iterator<Node<OWLNamedIndividual>> iter = individuals.iterator();
+    	OWLNamedIndividualNodeSet instances = new OWLNamedIndividualNodeSet();
+    	while (iter.hasNext()) {
+    		Node<OWLNamedIndividual> currentNode = iter.next();
+    		if (!currentNode.contains(individual)) {
+    			instances.addNode(currentNode);
+    		}
+    	}
+    	return instances;
     }
 
     @Override
@@ -246,14 +286,27 @@ public class DMTReasoner implements OWLReasoner, OWLOntologyChangeListener {
     }
 
     @Override
-    public Node<OWLNamedIndividual> getSameIndividuals(OWLNamedIndividual arg0) {
-        // TODO Auto-generated method stub
-        return null;
+    /**
+     * Individuals are represented by the individuals node set. We return the Node of individuals that
+     * is contains the specified individual. Same individuals are located in the same node.
+     * Returns null if the individual is not anywhere in the NodeSet of individuals
+     * @param individual
+     * @return
+     */
+    public Node<OWLNamedIndividual> getSameIndividuals(OWLNamedIndividual individual) {
+    	Iterator<Node<OWLNamedIndividual>> iter = individuals.iterator();
+    	while (iter.hasNext()) {
+    		Node<OWLNamedIndividual> currentNode = iter.next();
+    		if (currentNode.contains(individual)) {
+    			return currentNode;
+    		}
+    	}
+    	return null;
     }
 
     @Override
-    public NodeSet<OWLClass> getSubClasses(OWLClassExpression arg0, boolean arg1) {
-        // TODO Auto-generated method stub
+    public NodeSet<OWLClass> getSubClasses(OWLClassExpression classExpression, boolean directSubclass) {
+    	// TODO Auto-generated method stub
         return null;
     }
 
@@ -300,17 +353,20 @@ public class DMTReasoner implements OWLReasoner, OWLOntologyChangeListener {
 
     @Override
     public Node<OWLClass> getTopClassNode() {
-        return topClassNode;
+    	// TODO Auto-generated method stub
+        return null;
     }
 
     @Override
     public Node<OWLDataProperty> getTopDataPropertyNode() {
-        return topDataPropertyNode;
+    	// TODO Auto-generated method stub
+        return null;
     }
 
     @Override
     public Node<OWLObjectPropertyExpression> getTopObjectPropertyNode() {
-        return topObjectPropertyNode;
+    	// TODO Auto-generated method stub
+        return null;
     }
 
     @Override
@@ -390,5 +446,6 @@ public class DMTReasoner implements OWLReasoner, OWLOntologyChangeListener {
             }
         }
     }
+    
 
 }
