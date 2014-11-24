@@ -1,4 +1,5 @@
 import java.io.File;
+import java.util.Collection;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
@@ -226,9 +227,29 @@ public class DMTReasoner implements OWLReasoner, OWLOntologyChangeListener {
 	}
 
 	@Override
+	/**
+	 * Get the classes from our classNodeHierarchy which are equivalent to the given class expression.
+	 */
 	public Node<OWLClass> getEquivalentClasses(OWLClassExpression classExpr) {
-		// TODO Auto-generated method stub
-		return null;
+		if (classExpr.isAnonymous()) {
+			//TODO Tougher to deal with this, need to reason about anonymous class expressions.
+			return null;
+		}
+		else {
+			//If it is not anonymous, it must be a class we already have
+			OWLClass owlclass = classExpr.asOWLClass();
+			Iterator<Node<OWLClass>> iter = classNodeHierarchy.iterator();
+			
+			while (iter.hasNext()) {
+				Node<OWLClass> currentClassNode = iter.next();
+				if (currentClassNode.contains(owlclass)) {
+					return currentClassNode;
+				}
+			}
+			
+			return null;
+			
+		}
 	}
 
 	@Override
@@ -244,15 +265,21 @@ public class DMTReasoner implements OWLReasoner, OWLOntologyChangeListener {
 	}
 
 	@Override
+	/**
+	 * Not entirely sure how "fresh entities" are defined. For now, we will disallow them
+	 */
 	public FreshEntityPolicy getFreshEntityPolicy() {
-		// TODO Auto-generated method stub
-		return null;
+		return FreshEntityPolicy.DISALLOW;
 	}
 
 	@Override
+	/**
+	 * This means that if two individuals are marked as being owl:sameAs, we group them into the same node.
+	 * So, if i,j,k are individuals all of class C, i owl:sameAs j, and we want to return all instances of C, then we will return a node set
+	 * with two nodes, one node with i and j, and the other node with k.
+	 */
 	public IndividualNodeSetPolicy getIndividualNodeSetPolicy() {
-		// TODO Auto-generated method stub
-		return null;
+		return IndividualNodeSetPolicy.BY_SAME_AS;
 	}
 
 	@Override
@@ -353,7 +380,7 @@ public class DMTReasoner implements OWLReasoner, OWLOntologyChangeListener {
 	/**
 	 * Returns the sub dataProperties of the specified dataProperty.
 	 * @param direct
-	 * If direct is specified, then we only grab the direct sub dataProperties (i.e. properties only one edge away in our data prop hierarchy)
+	 * If direct is true, then we only grab the direct sub dataProperties (i.e. properties only one edge away in our data prop hierarchy)
 	 */
 	public NodeSet<OWLDataProperty> getSubDataProperties(OWLDataProperty dataProperty, boolean direct) {
 		
@@ -363,10 +390,12 @@ public class DMTReasoner implements OWLReasoner, OWLOntologyChangeListener {
 		while (iter.hasNext()) {
 			Node<OWLDataProperty> currentNode = iter.next();
 			if (currentNode.contains(dataProperty)) {
-				Set<DefaultEdge> incomingEdges = dataPropertyNodeHierarchy.incomingEdgesOf(currentNode);
+				
 				if (direct) {
 					
+					Set<DefaultEdge> incomingEdges = dataPropertyNodeHierarchy.incomingEdgesOf(currentNode);
 					Iterator<DefaultEdge> edgeIter = incomingEdges.iterator();
+					
 					while (edgeIter.hasNext()) {
 						DefaultEdge currentEdge = edgeIter.next();
 						Node<OWLDataProperty> dataPropertyNode = dataPropertyNodeHierarchy.getEdgeSource(currentEdge);
@@ -376,12 +405,47 @@ public class DMTReasoner implements OWLReasoner, OWLOntologyChangeListener {
 					
 				}
 				else {
-					//TODO: Add recursive implementation for not direct subproperties
+					
+					return getSubDataPropsRecursively(currentNode, instances);
+					
 				}
 			}
 		}
 		// This means the specified data property was not in our data property hierarchy
 		return null;
+	}
+	
+	/**
+	 * Method recursively rolls through the dataPropertyNodeHierarchy
+	 * @param currentNode
+	 * 				The node that we want to get a list of all subnodes for
+	 * @param instances
+	 * 				Helper parameter to keep track of the nodes we have already added
+	 * @return
+	 */
+	private OWLDataPropertyNodeSet getSubDataPropsRecursively(Node<OWLDataProperty> currentNode, OWLDataPropertyNodeSet instances) {
+		
+		if (!instances.containsEntity(currentNode.getRepresentativeElement())) {
+			instances.addNode(currentNode);
+		}
+		
+		Iterator<Node<OWLDataProperty>> iter = dataPropertyNodeHierarchy.iterator();
+		
+		//This could probably be a bit more efficient, but *should* work
+		while(iter.hasNext()) {
+			
+			Set<DefaultEdge> incomingEdges = dataPropertyNodeHierarchy.incomingEdgesOf(currentNode);
+			Iterator<DefaultEdge> edgeIter = incomingEdges.iterator();
+			
+			while(edgeIter.hasNext()) {
+				DefaultEdge currentEdge = edgeIter.next();
+				Node<OWLDataProperty> dataPropertyNode = dataPropertyNodeHierarchy.getEdgeSource(currentEdge);
+				getSubDataPropsRecursively(dataPropertyNode, instances);
+			}
+			
+		}
+		
+		return instances;
 	}
 
 	@Override
