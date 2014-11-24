@@ -31,6 +31,8 @@ import org.semanticweb.owlapi.reasoner.InferenceType;
 import org.semanticweb.owlapi.reasoner.Node;
 import org.semanticweb.owlapi.reasoner.NodeSet;
 import org.semanticweb.owlapi.reasoner.OWLReasoner;
+import org.semanticweb.owlapi.reasoner.impl.OWLClassNodeSet;
+import org.semanticweb.owlapi.reasoner.impl.OWLDataPropertyNodeSet;
 import org.semanticweb.owlapi.reasoner.impl.OWLNamedIndividualNodeSet;
 import org.semanticweb.owlapi.util.Version;
 
@@ -342,19 +344,48 @@ public class DMTReasoner implements OWLReasoner, OWLOntologyChangeListener {
 	}
 
 	@Override
-	public NodeSet<OWLClass> getSubClasses(OWLClassExpression classExpression, boolean directSubclass) {
+	public NodeSet<OWLClass> getSubClasses(OWLClassExpression classExpression, boolean direct) {
 		// TODO Auto-generated method stub
 		return null;
 	}
 
 	@Override
-	public NodeSet<OWLDataProperty> getSubDataProperties(OWLDataProperty arg0, boolean arg1) {
-		// TODO Auto-generated method stub
+	/**
+	 * Returns the sub dataProperties of the specified dataProperty.
+	 * @param direct
+	 * If direct is specified, then we only grab the direct sub dataProperties (i.e. properties only one edge away in our data prop hierarchy)
+	 */
+	public NodeSet<OWLDataProperty> getSubDataProperties(OWLDataProperty dataProperty, boolean direct) {
+		
+		OWLDataPropertyNodeSet instances = new OWLDataPropertyNodeSet();
+		Iterator<Node<OWLDataProperty>> iter = dataPropertyNodeHierarchy.iterator();
+		
+		while (iter.hasNext()) {
+			Node<OWLDataProperty> currentNode = iter.next();
+			if (currentNode.contains(dataProperty)) {
+				Set<DefaultEdge> incomingEdges = dataPropertyNodeHierarchy.incomingEdgesOf(currentNode);
+				if (direct) {
+					
+					Iterator<DefaultEdge> edgeIter = incomingEdges.iterator();
+					while (edgeIter.hasNext()) {
+						DefaultEdge currentEdge = edgeIter.next();
+						Node<OWLDataProperty> dataPropertyNode = dataPropertyNodeHierarchy.getEdgeSource(currentEdge);
+						instances.addNode(dataPropertyNode);
+					}
+					return instances;
+					
+				}
+				else {
+					//TODO: Add recursive implementation for not direct subproperties
+				}
+			}
+		}
+		// This means the specified data property was not in our data property hierarchy
 		return null;
 	}
 
 	@Override
-	public NodeSet<OWLObjectPropertyExpression> getSubObjectProperties(OWLObjectPropertyExpression arg0, boolean arg1) {
+	public NodeSet<OWLObjectPropertyExpression> getSubObjectProperties(OWLObjectPropertyExpression arg0, boolean direct) {
 		// TODO Auto-generated method stub
 		return null;
 	}
