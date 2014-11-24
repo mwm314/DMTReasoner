@@ -32,10 +32,15 @@ import org.semanticweb.owlapi.reasoner.InferenceType;
 import org.semanticweb.owlapi.reasoner.Node;
 import org.semanticweb.owlapi.reasoner.NodeSet;
 import org.semanticweb.owlapi.reasoner.OWLReasoner;
+import org.semanticweb.owlapi.reasoner.impl.OWLClassNode;
 import org.semanticweb.owlapi.reasoner.impl.OWLClassNodeSet;
 import org.semanticweb.owlapi.reasoner.impl.OWLDataPropertyNodeSet;
 import org.semanticweb.owlapi.reasoner.impl.OWLNamedIndividualNodeSet;
+import org.semanticweb.owlapi.reasoner.impl.OWLObjectPropertyNode;
+import org.semanticweb.owlapi.reasoner.impl.OWLObjectPropertyNodeSet;
 import org.semanticweb.owlapi.util.Version;
+
+import uk.ac.manchester.cs.owl.owlapi.OWLClassImpl;
 
 public class DMTReasoner implements OWLReasoner, OWLOntologyChangeListener {
 	// List of class variables
@@ -44,8 +49,7 @@ public class DMTReasoner implements OWLReasoner, OWLOntologyChangeListener {
 	 */
 	private OWLOntology ontology;
 
-	// DAGS for our class and property hierarchies? See here for why we may need
-	// them:
+	// DAGS for our class and property hierarchies. See here for why we need them:
 	// http://owlapi.sourceforge.net/javadoc/org/semanticweb/owlapi/reasoner/OWLReasoner.html
 	private DirectedAcyclicGraph<Node<OWLClass>, DefaultEdge> classNodeHierarchy = new DirectedAcyclicGraph<Node<OWLClass>, DefaultEdge>(DefaultEdge.class);
 	private DirectedAcyclicGraph<Node<OWLDataProperty>, DefaultEdge> dataPropertyNodeHierarchy = new DirectedAcyclicGraph<Node<OWLDataProperty>, DefaultEdge>(DefaultEdge.class);
@@ -57,7 +61,6 @@ public class DMTReasoner implements OWLReasoner, OWLOntologyChangeListener {
 	// A NodeSet representing the individuals
 	private OWLNamedIndividualNodeSet individuals = new OWLNamedIndividualNodeSet();
 
-	// God only knows what this does
 	private BufferingMode bufferingMode = BufferingMode.BUFFERING;
 
 	// Axioms added
@@ -232,23 +235,23 @@ public class DMTReasoner implements OWLReasoner, OWLOntologyChangeListener {
 	 */
 	public Node<OWLClass> getEquivalentClasses(OWLClassExpression classExpr) {
 		if (classExpr.isAnonymous()) {
-			//TODO Tougher to deal with this, need to reason about anonymous class expressions.
+			// TODO Tougher to deal with this, need to reason about anonymous class expressions.
 			return null;
 		}
 		else {
-			//If it is not anonymous, it must be a class we already have
+			// If it is not anonymous, it must be a class we already have
 			OWLClass owlclass = classExpr.asOWLClass();
 			Iterator<Node<OWLClass>> iter = classNodeHierarchy.iterator();
-			
+
 			while (iter.hasNext()) {
 				Node<OWLClass> currentClassNode = iter.next();
 				if (currentClassNode.contains(owlclass)) {
 					return currentClassNode;
 				}
 			}
-			
+
 			return null;
-			
+
 		}
 	}
 
@@ -289,8 +292,13 @@ public class DMTReasoner implements OWLReasoner, OWLOntologyChangeListener {
 	}
 
 	@Override
+	/**
+	 * We do not handle inverse properties, so the DTMReasoner object will always throw an exception when this method is called
+	 * @param arg0
+	 * @return
+	 */
 	public Node<OWLObjectPropertyExpression> getInverseObjectProperties(OWLObjectPropertyExpression arg0) {
-		// TODO Auto-generated method stub
+		//Throw exception here
 		return null;
 	}
 
@@ -314,14 +322,12 @@ public class DMTReasoner implements OWLReasoner, OWLOntologyChangeListener {
 
 	@Override
 	public Set<OWLAxiom> getPendingAxiomAdditions() {
-		// TODO Auto-generated method stub
-		return null;
+		return additions;
 	}
 
 	@Override
 	public Set<OWLAxiom> getPendingAxiomRemovals() {
-		// TODO Auto-generated method stub
-		return null;
+		return removals;
 	}
 
 	@Override
@@ -383,75 +389,138 @@ public class DMTReasoner implements OWLReasoner, OWLOntologyChangeListener {
 	 * If direct is true, then we only grab the direct sub dataProperties (i.e. properties only one edge away in our data prop hierarchy)
 	 */
 	public NodeSet<OWLDataProperty> getSubDataProperties(OWLDataProperty dataProperty, boolean direct) {
-		
+
 		OWLDataPropertyNodeSet instances = new OWLDataPropertyNodeSet();
 		Iterator<Node<OWLDataProperty>> iter = dataPropertyNodeHierarchy.iterator();
-		
+
 		while (iter.hasNext()) {
 			Node<OWLDataProperty> currentNode = iter.next();
 			if (currentNode.contains(dataProperty)) {
-				
+
 				if (direct) {
-					
+
 					Set<DefaultEdge> incomingEdges = dataPropertyNodeHierarchy.incomingEdgesOf(currentNode);
 					Iterator<DefaultEdge> edgeIter = incomingEdges.iterator();
-					
+
 					while (edgeIter.hasNext()) {
 						DefaultEdge currentEdge = edgeIter.next();
 						Node<OWLDataProperty> dataPropertyNode = dataPropertyNodeHierarchy.getEdgeSource(currentEdge);
 						instances.addNode(dataPropertyNode);
 					}
 					return instances;
-					
+
 				}
 				else {
-					
+
 					return getSubDataPropsRecursively(currentNode, instances);
-					
+
 				}
 			}
 		}
 		// This means the specified data property was not in our data property hierarchy
 		return null;
 	}
-	
+
 	/**
 	 * Method recursively rolls through the dataPropertyNodeHierarchy
+	 * 
 	 * @param currentNode
-	 * 				The node that we want to get a list of all subnodes for
+	 *            The node that we want to get a list of all subnodes for
 	 * @param instances
-	 * 				Helper parameter to keep track of the nodes we have already added
+	 *            Helper parameter to keep track of the nodes we have already added
 	 * @return
 	 */
 	private OWLDataPropertyNodeSet getSubDataPropsRecursively(Node<OWLDataProperty> currentNode, OWLDataPropertyNodeSet instances) {
-		
+
 		if (!instances.containsEntity(currentNode.getRepresentativeElement())) {
 			instances.addNode(currentNode);
 		}
-		
+
 		Iterator<Node<OWLDataProperty>> iter = dataPropertyNodeHierarchy.iterator();
-		
-		//This could probably be a bit more efficient, but *should* work
-		while(iter.hasNext()) {
-			
+
+		// This could probably be a bit more efficient, but *should* work
+		while (iter.hasNext()) {
+
 			Set<DefaultEdge> incomingEdges = dataPropertyNodeHierarchy.incomingEdgesOf(currentNode);
 			Iterator<DefaultEdge> edgeIter = incomingEdges.iterator();
-			
-			while(edgeIter.hasNext()) {
+
+			while (edgeIter.hasNext()) {
 				DefaultEdge currentEdge = edgeIter.next();
 				Node<OWLDataProperty> dataPropertyNode = dataPropertyNodeHierarchy.getEdgeSource(currentEdge);
 				getSubDataPropsRecursively(dataPropertyNode, instances);
 			}
-			
+
 		}
-		
+
 		return instances;
 	}
 
 	@Override
-	public NodeSet<OWLObjectPropertyExpression> getSubObjectProperties(OWLObjectPropertyExpression arg0, boolean direct) {
-		// TODO Auto-generated method stub
+	public NodeSet<OWLObjectPropertyExpression> getSubObjectProperties(OWLObjectPropertyExpression objectPropExpression, boolean direct) {
+
+		OWLObjectPropertyNodeSet instances = new OWLObjectPropertyNodeSet();
+		Iterator<Node<OWLObjectPropertyExpression>> iter = objectPropertyNodeHierarchy.iterator();
+
+		while (iter.hasNext()) {
+			Node<OWLObjectPropertyExpression> currentNode = iter.next();
+			if (currentNode.contains(objectPropExpression)) {
+
+				if (direct) {
+
+					Set<DefaultEdge> incomingEdges = objectPropertyNodeHierarchy.incomingEdgesOf(currentNode);
+					Iterator<DefaultEdge> edgeIter = incomingEdges.iterator();
+
+					while (edgeIter.hasNext()) {
+						DefaultEdge currentEdge = edgeIter.next();
+						Node<OWLObjectPropertyExpression> objectPropertyNode = objectPropertyNodeHierarchy.getEdgeSource(currentEdge);
+						instances.addNode(objectPropertyNode);
+					}
+					return instances;
+
+				}
+				else {
+
+					return getSubObjectPropsRecursively(currentNode, instances);
+
+				}
+			}
+		}
+		// This means the specified data property was not in our data property hierarchy
 		return null;
+	}
+
+	/**
+	 * Method recursively rolls through the dataPropertyNodeHierarchy
+	 * 
+	 * @param currentNode
+	 *            The node that we want to get a list of all subnodes for
+	 * @param instances
+	 *            Helper parameter to keep track of the nodes we have already added
+	 * @return
+	 */
+	private NodeSet<OWLObjectPropertyExpression> getSubObjectPropsRecursively(Node<OWLObjectPropertyExpression> currentNode, OWLObjectPropertyNodeSet instances) {
+
+		if (!instances.containsEntity(currentNode.getRepresentativeElement())) {
+			instances.addNode(currentNode);
+		}
+
+		Iterator<Node<OWLObjectPropertyExpression>> iter = objectPropertyNodeHierarchy.iterator();
+
+		// This could probably be a bit more efficient, but *should* work
+		while (iter.hasNext()) {
+
+			Set<DefaultEdge> incomingEdges = objectPropertyNodeHierarchy.incomingEdgesOf(currentNode);
+			Iterator<DefaultEdge> edgeIter = incomingEdges.iterator();
+
+			while (edgeIter.hasNext()) {
+				DefaultEdge currentEdge = edgeIter.next();
+				Node<OWLObjectPropertyExpression> objectPropertyNode = objectPropertyNodeHierarchy.getEdgeSource(currentEdge);
+				getSubObjectPropsRecursively(objectPropertyNode, instances);
+			}
+
+		}
+
+		return instances;
 	}
 
 	@Override
@@ -554,9 +623,12 @@ public class DMTReasoner implements OWLReasoner, OWLOntologyChangeListener {
 	}
 
 	@Override
+	/**
+	 * Just return our bottom class node
+	 * @return
+	 */
 	public Node<OWLClass> getUnsatisfiableClasses() {
-		// TODO Auto-generated method stub
-		return null;
+		return getBottomClassNode();
 	}
 
 	@Override
@@ -566,8 +638,20 @@ public class DMTReasoner implements OWLReasoner, OWLOntologyChangeListener {
 	}
 
 	@Override
+	/**
+	 * In order to determine consistency, we check if our DAG contains only a topNode and bottomNode, and if the topNode is a singleton.
+	 * @return
+	 */
 	public boolean isConsistent() {
-		// TODO Auto-generated method stub
+		//If there is an edge between the top and bottom class nodes, then there are just two nodes
+		if (classNodeHierarchy.containsEdge(getTopClassNode(), getBottomClassNode())) {
+			if (getTopClassNode().isSingleton()) {
+				if (!getBottomClassNode().isSingleton()) {
+					//If all classes are in the bottomClassNode, return true.
+					return true;
+				}
+			}
+		}
 		return false;
 	}
 
