@@ -35,417 +35,500 @@ import org.semanticweb.owlapi.reasoner.impl.OWLNamedIndividualNodeSet;
 import org.semanticweb.owlapi.util.Version;
 
 public class DMTReasoner implements OWLReasoner, OWLOntologyChangeListener {
-    //List of class variables
-    /**
-     * The ontology we are reasoning over
-     */
-    private OWLOntology ontology;
-    
-    //DAGS for our class and property hierarchies? See here for why we may need them: http://owlapi.sourceforge.net/javadoc/org/semanticweb/owlapi/reasoner/OWLReasoner.html
-    //private DirectedAcyclicGraph<Node<OWLClass>, DefaultEdge> classNodeHierarchy = new DirectedAcyclicGraph<Node<OWLClass>, DefaultEdge>(DefaultEdge.class);
-    //private DirectedAcyclicGraph<Node<OWLDataProperty>, DefaultEdge> dataPropertyNodeHierarchy = new DirectedAcyclicGraph<Node<OWLDataProperty>, DefaultEdge>(DefaultEdge.class);
-    //private DirectedAcyclicGraph<Node<OWLObjectProperty>, DefaultEdge> objectPropertyNodeHierarchy = new DirectedAcyclicGraph<Node<OWLObjectProperty>, DefaultEdge>(DefaultEdge.class);
-    
-    //A NodeSet representing the individuals
-    private OWLNamedIndividualNodeSet individuals = new OWLNamedIndividualNodeSet();
+	// List of class variables
+	/**
+	 * The ontology we are reasoning over
+	 */
+	private OWLOntology ontology;
 
-    //God only knows what this does
-    private BufferingMode bufferingMode = BufferingMode.BUFFERING;
+	// DAGS for our class and property hierarchies? See here for why we may need
+	// them:
+	// http://owlapi.sourceforge.net/javadoc/org/semanticweb/owlapi/reasoner/OWLReasoner.html
+	private DirectedAcyclicGraph<Node<OWLClass>, DefaultEdge> classNodeHierarchy = new DirectedAcyclicGraph<Node<OWLClass>, DefaultEdge>(DefaultEdge.class);
+	private DirectedAcyclicGraph<Node<OWLDataProperty>, DefaultEdge> dataPropertyNodeHierarchy = new DirectedAcyclicGraph<Node<OWLDataProperty>, DefaultEdge>(DefaultEdge.class);
+	// I'm not sure why, but it seems as if this interface is conducive
+	// Node<OWLObjectPropertyExpression>, but I feel like they should be
+	// Node<OWLObjectProperty>.
+	private DirectedAcyclicGraph<Node<OWLObjectPropertyExpression>, DefaultEdge> objectPropertyNodeHierarchy = new DirectedAcyclicGraph<Node<OWLObjectPropertyExpression>, DefaultEdge>(DefaultEdge.class);
 
-    //Axioms added
-    private Set<OWLAxiom> additions = new HashSet<OWLAxiom>();
+	// A NodeSet representing the individuals
+	private OWLNamedIndividualNodeSet individuals = new OWLNamedIndividualNodeSet();
 
-    //Axioms removed
-    private Set<OWLAxiom> removals = new HashSet<OWLAxiom>();
-    
-    //Given axioms from the ontology
-    private Set<OWLAxiom> axioms;
-    
-    
-    //These have to be attached to a hierarchy of some kind
-    /*private OWLClassNode bottomClassNode = OWLClassNode.getBottomNode();
-    private OWLDataPropertyNode bottomDataPropertyNode = OWLDataPropertyNode.getBottomNode();
-    private OWLObjectPropertyNode bottomObjectPropertyNode = OWLObjectPropertyNode.getBottomNode();
+	// God only knows what this does
+	private BufferingMode bufferingMode = BufferingMode.BUFFERING;
 
-    private OWLClassNode topClassNode = OWLClassNode.getTopNode();
-    private OWLDataPropertyNode topDataPropertyNode = OWLDataPropertyNode.getTopNode();
-    private OWLObjectPropertyNode topObjectPropertyNode = OWLObjectPropertyNode.getTopNode();*/
+	// Axioms added
+	private Set<OWLAxiom> additions = new HashSet<OWLAxiom>();
 
-    /**
-     * Constructor for DMTReasoner
-     */
-    DMTReasoner(OWLOntology ontology) {
-        this.ontology = ontology;
-        axioms = ontology.getAxioms();
-    }
+	// Axioms removed
+	private Set<OWLAxiom> removals = new HashSet<OWLAxiom>();
 
-    @Override
-    public void dispose() {
-        // TODO Auto-generated method stub
-    	
-    }
+	// Given axioms from the ontology
+	private Set<OWLAxiom> axioms;
 
-    @Override
-    public void flush() {
-        for(OWLAxiom i : removals){
-            axioms.remove(i);
-        }
-        for(OWLAxiom i : additions){
-            axioms.add(i);
-        }
-        
+	// These have to be attached to a hierarchy of some kind
+	/*
+	 * private OWLClassNode bottomClassNode = OWLClassNode.getBottomNode(); private OWLDataPropertyNode bottomDataPropertyNode = OWLDataPropertyNode.getBottomNode(); private OWLObjectPropertyNode bottomObjectPropertyNode = OWLObjectPropertyNode.getBottomNode();
+	 * 
+	 * private OWLClassNode topClassNode = OWLClassNode.getTopNode(); private OWLDataPropertyNode topDataPropertyNode = OWLDataPropertyNode.getTopNode(); private OWLObjectPropertyNode topObjectPropertyNode = OWLObjectPropertyNode.getTopNode();
+	 */
 
-    }
+	/**
+	 * Constructor for DMTReasoner
+	 */
+	DMTReasoner(OWLOntology ontology) {
+		this.ontology = ontology;
+		axioms = ontology.getAxioms();
+	}
 
-    @Override
-    /**
-     * Returns the bottom class node from our classNodeSet hierarchy
-     * @return
-     */
-    public Node<OWLClass> getBottomClassNode() {
-    	// TODO Auto-generated method stub
-        return null;
-    }
+	@Override
+	public void dispose() {
+		// TODO Auto-generated method stub
 
-    @Override
-    public Node<OWLDataProperty> getBottomDataPropertyNode() {
-    	// TODO Auto-generated method stub
-        return null;
-    }
+	}
 
-    @Override
-    public Node<OWLObjectPropertyExpression> getBottomObjectPropertyNode() {
-    	// TODO Auto-generated method stub
-        return null;
-    }
+	@Override
+	public void flush() {
+		for (OWLAxiom i : removals) {
+			axioms.remove(i);
+		}
+		for (OWLAxiom i : additions) {
+			axioms.add(i);
+		}
 
-    @Override
-    public BufferingMode getBufferingMode() {
-        return bufferingMode;
-    }
+	}
 
-    @Override
-    public NodeSet<OWLClass> getDataPropertyDomains(OWLDataProperty dataProperty,
-            boolean arg1) {
-        // TODO Auto-generated method stub
-        return null;
-    }
+	@Override
+	/**
+	 * Returns the bottom class node from our classNodeHierarchy.
+	 * This node is the node without any incoming edges
+	 * @return
+	 */
+	public Node<OWLClass> getBottomClassNode() {
+		Iterator<Node<OWLClass>> iter = classNodeHierarchy.iterator();
+		while (iter.hasNext()) {
 
-    @Override
-    public Set<OWLLiteral> getDataPropertyValues(OWLNamedIndividual individual,
-            OWLDataProperty dataProperty) {
-        // TODO Auto-generated method stub
-        return null;
-    }
+			Node<OWLClass> currentNode = iter.next();
+			Set<DefaultEdge> edgeSet = classNodeHierarchy.incomingEdgesOf(currentNode);
 
-    @Override
-    /**
-     * Individuals are represented by the individuals node set. We return the NodeSet of all individual Nodes
-     * except for the node with the given individual. Same individuals are located in the same node.
-     * Returns null if the individual is not anywhere in the NodeSet of individuals
-     * @param individual
-     * @return
-     */
-    public NodeSet<OWLNamedIndividual> getDifferentIndividuals(
-            OWLNamedIndividual individual) {
-    	Iterator<Node<OWLNamedIndividual>> iter = individuals.iterator();
-    	OWLNamedIndividualNodeSet instances = new OWLNamedIndividualNodeSet();
-    	while (iter.hasNext()) {
-    		Node<OWLNamedIndividual> currentNode = iter.next();
-    		if (!currentNode.contains(individual)) {
-    			instances.addNode(currentNode);
-    		}
-    	}
-    	return instances;
-    }
+			if (edgeSet.isEmpty()) {
+				// The bottom node should not have any incoming edges, so return this node
+				return currentNode;
+			}
 
-    @Override
-    public NodeSet<OWLClass> getDisjointClasses(OWLClassExpression owlClassExpr) {
-        // TODO Auto-generated method stub
-        return null;
-    }
+		}
+		// We should never get here if our hierarchy is implemented correctly
+		return null;
+	}
 
-    @Override
-    public NodeSet<OWLDataProperty> getDisjointDataProperties(
-            OWLDataPropertyExpression dataPropExpr) {
-        // TODO Auto-generated method stub
-        return null;
-    }
+	@Override
+	/**
+	 * Returns the bottom data property node from our dataPropertyNodeHierarchy
+	 * This node is the node without any incoming edges
+	 */
+	public Node<OWLDataProperty> getBottomDataPropertyNode() {
+		Iterator<Node<OWLDataProperty>> iter = dataPropertyNodeHierarchy.iterator();
+		while (iter.hasNext()) {
 
-    @Override
-    public NodeSet<OWLObjectPropertyExpression> getDisjointObjectProperties(
-            OWLObjectPropertyExpression objectPropExpr) {
-        // TODO Auto-generated method stub
-        return null;
-    }
+			Node<OWLDataProperty> currentNode = iter.next();
+			Set<DefaultEdge> edgeSet = dataPropertyNodeHierarchy.incomingEdgesOf(currentNode);
 
-    @Override
-    public Node<OWLClass> getEquivalentClasses(OWLClassExpression classExpr) {
-        // TODO Auto-generated method stub
-        return null;
-    }
+			if (edgeSet.isEmpty()) {
+				// The bottom node should not have any incoming edges, so return this node
+				return currentNode;
+			}
 
-    @Override
-    public Node<OWLDataProperty> getEquivalentDataProperties(
-            OWLDataProperty dataProp) {
-        // TODO Auto-generated method stub
-        return null;
-    }
+		}
+		// We should never get here if our hierarchy is implemented correctly
+		return null;
+	}
 
-    @Override
-    public Node<OWLObjectPropertyExpression> getEquivalentObjectProperties(
-            OWLObjectPropertyExpression objectPropExpr) {
-        // TODO Auto-generated method stub
-        return null;
-    }
+	@Override
+	/**
+	 * Returns the bottom data property node from our objectPropertyNodeHierarchy
+	 * This node is the node without any incoming edges
+	 */
+	public Node<OWLObjectPropertyExpression> getBottomObjectPropertyNode() {
+		// Should this return Node<OWLObjectProperty>?! Confusing...
+		Iterator<Node<OWLObjectPropertyExpression>> iter = objectPropertyNodeHierarchy.iterator();
+		while (iter.hasNext()) {
 
-    @Override
-    public FreshEntityPolicy getFreshEntityPolicy() {
-        // TODO Auto-generated method stub
-        return null;
-    }
+			Node<OWLObjectPropertyExpression> currentNode = iter.next();
+			Set<DefaultEdge> edgeSet = objectPropertyNodeHierarchy.incomingEdgesOf(currentNode);
 
-    @Override
-    public IndividualNodeSetPolicy getIndividualNodeSetPolicy() {
-        // TODO Auto-generated method stub
-        return null;
-    }
+			if (edgeSet.isEmpty()) {
+				// The bottom node should not have any incoming edges, so return this node
+				return currentNode;
+			}
 
-    @Override
-    public NodeSet<OWLNamedIndividual> getInstances(OWLClassExpression arg0,
-            boolean arg1) {
-        // TODO Auto-generated method stub
-        return null;
-    }
+		}
+		// We should never get here if our hierarchy is implemented correctly
+		return null;
+	}
 
-    @Override
-    public Node<OWLObjectPropertyExpression> getInverseObjectProperties(
-            OWLObjectPropertyExpression arg0) {
-        // TODO Auto-generated method stub
-        return null;
-    }
+	@Override
+	public BufferingMode getBufferingMode() {
+		return bufferingMode;
+	}
 
-    @Override
-    public NodeSet<OWLClass> getObjectPropertyDomains(
-            OWLObjectPropertyExpression arg0, boolean arg1) {
-        // TODO Auto-generated method stub
-        return null;
-    }
+	@Override
+	public NodeSet<OWLClass> getDataPropertyDomains(OWLDataProperty dataProperty, boolean arg1) {
+		// TODO Auto-generated method stub
+		return null;
+	}
 
-    @Override
-    public NodeSet<OWLClass> getObjectPropertyRanges(
-            OWLObjectPropertyExpression arg0, boolean arg1) {
-        // TODO Auto-generated method stub
-        return null;
-    }
+	@Override
+	public Set<OWLLiteral> getDataPropertyValues(OWLNamedIndividual individual, OWLDataProperty dataProperty) {
+		// TODO Auto-generated method stub
+		return null;
+	}
 
-    @Override
-    public NodeSet<OWLNamedIndividual> getObjectPropertyValues(
-            OWLNamedIndividual arg0, OWLObjectPropertyExpression arg1) {
-        // TODO Auto-generated method stub
-        return null;
-    }
+	@Override
+	/**
+	 * Individuals are represented by the individuals node set. We return the NodeSet of all individual Nodes
+	 * except for the node with the given individual. Same individuals are located in the same node.
+	 * Returns null if the individual is not anywhere in the NodeSet of individuals
+	 * @param individual
+	 * @return
+	 */
+	public NodeSet<OWLNamedIndividual> getDifferentIndividuals(OWLNamedIndividual individual) {
 
-    @Override
-    public Set<OWLAxiom> getPendingAxiomAdditions() {
-        // TODO Auto-generated method stub
-        return null;
-    }
+		Iterator<Node<OWLNamedIndividual>> iter = individuals.iterator();
+		OWLNamedIndividualNodeSet instances = new OWLNamedIndividualNodeSet();
 
-    @Override
-    public Set<OWLAxiom> getPendingAxiomRemovals() {
-        // TODO Auto-generated method stub
-        return null;
-    }
+		while (iter.hasNext()) {
+			Node<OWLNamedIndividual> currentNode = iter.next();
+			if (!currentNode.contains(individual)) {
+				instances.addNode(currentNode);
+			}
+		}
+		return instances;
+	}
 
-    @Override
-    public List<OWLOntologyChange> getPendingChanges() {
-        // TODO Auto-generated method stub
-        return null;
-    }
+	@Override
+	public NodeSet<OWLClass> getDisjointClasses(OWLClassExpression owlClassExpr) {
+		// TODO Auto-generated method stub
+		return null;
+	}
 
-    @Override
-    public Set<InferenceType> getPrecomputableInferenceTypes() {
-        // TODO Auto-generated method stub
-        return null;
-    }
+	@Override
+	public NodeSet<OWLDataProperty> getDisjointDataProperties(OWLDataPropertyExpression dataPropExpr) {
+		// TODO Auto-generated method stub
+		return null;
+	}
 
-    @Override
-    public String getReasonerName() {
-        return "DMT (Dan, Matt, Tyler) Reasoner";
-    }
+	@Override
+	public NodeSet<OWLObjectPropertyExpression> getDisjointObjectProperties(OWLObjectPropertyExpression objectPropExpr) {
+		// TODO Auto-generated method stub
+		return null;
+	}
 
-    @Override
-    public Version getReasonerVersion() {
-        return new Version(1, 1, 1, 1);
-    }
+	@Override
+	public Node<OWLClass> getEquivalentClasses(OWLClassExpression classExpr) {
+		// TODO Auto-generated method stub
+		return null;
+	}
 
-    @Override
-    public OWLOntology getRootOntology() {
-        return ontology;
-    }
+	@Override
+	public Node<OWLDataProperty> getEquivalentDataProperties(OWLDataProperty dataProp) {
+		// TODO Auto-generated method stub
+		return null;
+	}
 
-    @Override
-    /**
-     * Individuals are represented by the individuals node set. We return the Node of individuals that
-     * is contains the specified individual. Same individuals are located in the same node.
-     * Returns null if the individual is not anywhere in the NodeSet of individuals
-     * @param individual
-     * @return
-     */
-    public Node<OWLNamedIndividual> getSameIndividuals(OWLNamedIndividual individual) {
-    	Iterator<Node<OWLNamedIndividual>> iter = individuals.iterator();
-    	while (iter.hasNext()) {
-    		Node<OWLNamedIndividual> currentNode = iter.next();
-    		if (currentNode.contains(individual)) {
-    			return currentNode;
-    		}
-    	}
-    	return null;
-    }
+	@Override
+	public Node<OWLObjectPropertyExpression> getEquivalentObjectProperties(OWLObjectPropertyExpression objectPropExpr) {
+		// TODO Auto-generated method stub
+		return null;
+	}
 
-    @Override
-    public NodeSet<OWLClass> getSubClasses(OWLClassExpression classExpression, boolean directSubclass) {
-    	// TODO Auto-generated method stub
-        return null;
-    }
+	@Override
+	public FreshEntityPolicy getFreshEntityPolicy() {
+		// TODO Auto-generated method stub
+		return null;
+	}
 
-    @Override
-    public NodeSet<OWLDataProperty> getSubDataProperties(OWLDataProperty arg0,
-            boolean arg1) {
-        // TODO Auto-generated method stub
-        return null;
-    }
+	@Override
+	public IndividualNodeSetPolicy getIndividualNodeSetPolicy() {
+		// TODO Auto-generated method stub
+		return null;
+	}
 
-    @Override
-    public NodeSet<OWLObjectPropertyExpression> getSubObjectProperties(
-            OWLObjectPropertyExpression arg0, boolean arg1) {
-        // TODO Auto-generated method stub
-        return null;
-    }
+	@Override
+	public NodeSet<OWLNamedIndividual> getInstances(OWLClassExpression arg0, boolean arg1) {
+		// TODO Auto-generated method stub
+		return null;
+	}
 
-    @Override
-    public NodeSet<OWLClass> getSuperClasses(OWLClassExpression arg0,
-            boolean arg1) {
-        // TODO Auto-generated method stub
-        return null;
-    }
+	@Override
+	public Node<OWLObjectPropertyExpression> getInverseObjectProperties(OWLObjectPropertyExpression arg0) {
+		// TODO Auto-generated method stub
+		return null;
+	}
 
-    @Override
-    public NodeSet<OWLDataProperty> getSuperDataProperties(
-            OWLDataProperty arg0, boolean arg1) {
-        // TODO Auto-generated method stub
-        return null;
-    }
+	@Override
+	public NodeSet<OWLClass> getObjectPropertyDomains(OWLObjectPropertyExpression arg0, boolean arg1) {
+		// TODO Auto-generated method stub
+		return null;
+	}
 
-    @Override
-    public NodeSet<OWLObjectPropertyExpression> getSuperObjectProperties(
-            OWLObjectPropertyExpression arg0, boolean arg1) {
-        // TODO Auto-generated method stub
-        return null;
-    }
+	@Override
+	public NodeSet<OWLClass> getObjectPropertyRanges(OWLObjectPropertyExpression arg0, boolean arg1) {
+		// TODO Auto-generated method stub
+		return null;
+	}
 
-    @Override
-    public long getTimeOut() {
-        // TODO Auto-generated method stub
-        return 0;
-    }
+	@Override
+	public NodeSet<OWLNamedIndividual> getObjectPropertyValues(OWLNamedIndividual arg0, OWLObjectPropertyExpression arg1) {
+		// TODO Auto-generated method stub
+		return null;
+	}
 
-    @Override
-    public Node<OWLClass> getTopClassNode() {
-    	// TODO Auto-generated method stub
-        return null;
-    }
+	@Override
+	public Set<OWLAxiom> getPendingAxiomAdditions() {
+		// TODO Auto-generated method stub
+		return null;
+	}
 
-    @Override
-    public Node<OWLDataProperty> getTopDataPropertyNode() {
-    	// TODO Auto-generated method stub
-        return null;
-    }
+	@Override
+	public Set<OWLAxiom> getPendingAxiomRemovals() {
+		// TODO Auto-generated method stub
+		return null;
+	}
 
-    @Override
-    public Node<OWLObjectPropertyExpression> getTopObjectPropertyNode() {
-    	// TODO Auto-generated method stub
-        return null;
-    }
+	@Override
+	public List<OWLOntologyChange> getPendingChanges() {
+		// TODO Auto-generated method stub
+		return null;
+	}
 
-    @Override
-    public NodeSet<OWLClass> getTypes(OWLNamedIndividual arg0, boolean arg1) {
-        // TODO Auto-generated method stub
-        return null;
-    }
+	@Override
+	public Set<InferenceType> getPrecomputableInferenceTypes() {
+		// TODO Auto-generated method stub
+		return null;
+	}
 
-    @Override
-    public Node<OWLClass> getUnsatisfiableClasses() {
-        // TODO Auto-generated method stub
-        return null;
-    }
+	@Override
+	public String getReasonerName() {
+		return "DMT (Dan, Matt, Tyler) Reasoner";
+	}
 
-    @Override
-    public void interrupt() {
-        // TODO Auto-generated method stub
+	@Override
+	public Version getReasonerVersion() {
+		return new Version(1, 1, 1, 1);
+	}
 
-    }
+	@Override
+	public OWLOntology getRootOntology() {
+		return ontology;
+	}
 
-    @Override
-    public boolean isConsistent() {
-        // TODO Auto-generated method stub
-        return false;
-    }
+	@Override
+	/**
+	 * Individuals are represented by the individuals node set. We return the Node of individuals that
+	 * is contains the specified individual. Same individuals are located in the same node.
+	 * Returns null if the individual is not anywhere in the NodeSet of individuals
+	 * @param individual
+	 * @return
+	 */
+	public Node<OWLNamedIndividual> getSameIndividuals(OWLNamedIndividual individual) {
+		Iterator<Node<OWLNamedIndividual>> iter = individuals.iterator();
+		while (iter.hasNext()) {
+			Node<OWLNamedIndividual> currentNode = iter.next();
+			if (currentNode.contains(individual)) {
+				return currentNode;
+			}
+		}
+		return null;
+	}
 
-    @Override
-    public boolean isEntailed(OWLAxiom arg0) {
-        // TODO Auto-generated method stub
-        return false;
-    }
+	@Override
+	public NodeSet<OWLClass> getSubClasses(OWLClassExpression classExpression, boolean directSubclass) {
+		// TODO Auto-generated method stub
+		return null;
+	}
 
-    @Override
-    public boolean isEntailed(Set<? extends OWLAxiom> arg0) {
-        // TODO Auto-generated method stub
-        return false;
-    }
+	@Override
+	public NodeSet<OWLDataProperty> getSubDataProperties(OWLDataProperty arg0, boolean arg1) {
+		// TODO Auto-generated method stub
+		return null;
+	}
 
-    @Override
-    public boolean isEntailmentCheckingSupported(AxiomType<?> arg0) {
-        // TODO Auto-generated method stub
-        return false;
-    }
+	@Override
+	public NodeSet<OWLObjectPropertyExpression> getSubObjectProperties(OWLObjectPropertyExpression arg0, boolean arg1) {
+		// TODO Auto-generated method stub
+		return null;
+	}
 
-    @Override
-    public boolean isPrecomputed(InferenceType arg0) {
-        // TODO Auto-generated method stub
-        return false;
-    }
+	@Override
+	public NodeSet<OWLClass> getSuperClasses(OWLClassExpression arg0, boolean arg1) {
+		// TODO Auto-generated method stub
+		return null;
+	}
 
-    @Override
-    public boolean isSatisfiable(OWLClassExpression arg0) {
-        // TODO Auto-generated method stub
-        return false;
-    }
+	@Override
+	public NodeSet<OWLDataProperty> getSuperDataProperties(OWLDataProperty arg0, boolean arg1) {
+		// TODO Auto-generated method stub
+		return null;
+	}
 
-    @Override
-    public void precomputeInferences(InferenceType... arg0) {
-        // TODO Auto-generated method stub
+	@Override
+	public NodeSet<OWLObjectPropertyExpression> getSuperObjectProperties(OWLObjectPropertyExpression arg0, boolean arg1) {
+		// TODO Auto-generated method stub
+		return null;
+	}
 
-    }
+	@Override
+	public long getTimeOut() {
+		// TODO Auto-generated method stub
+		return 0;
+	}
 
-    @Override
-    public void ontologiesChanged(List<? extends OWLOntologyChange> list) throws OWLException {
-        for (OWLOntologyChange i : list) {
-            if (i.getOntology().equals(ontology)) {
-                if (bufferingMode.equals(BufferingMode.BUFFERING)) {
-                    if (i.isAddAxiom()) {
-                        additions.add(i.getAxiom());
-                    } else if (i.isRemoveAxiom()) {
-                        removals.add(i.getAxiom());
-                    }
-                }
-                else{
-                    axioms = ontology.getAxioms();
-                }
-            }
-        }
-    }
-    
+	@Override
+	/**
+	 * Returns the top class node from our classNodeHierarchy.
+	 * This node is the node without any outgoing edges
+	 * @return
+	 */
+	public Node<OWLClass> getTopClassNode() {
+		Iterator<Node<OWLClass>> iter = classNodeHierarchy.iterator();
+		while (iter.hasNext()) {
+
+			Node<OWLClass> currentNode = iter.next();
+			Set<DefaultEdge> edgeSet = classNodeHierarchy.outgoingEdgesOf(currentNode);
+
+			if (edgeSet.isEmpty()) {
+				// The bottom node should not have any outgoing edges, so return this node
+				return currentNode;
+			}
+
+		}
+		// We should never get here if our hierarchy is implemented correctly
+		return null;
+	}
+
+	@Override
+	/**
+	 * Returns the top class node from our dataPropertyNodeHierarchy.
+	 * This node is the node without any outgoing edges
+	 * @return
+	 */
+	public Node<OWLDataProperty> getTopDataPropertyNode() {
+		Iterator<Node<OWLDataProperty>> iter = dataPropertyNodeHierarchy.iterator();
+		while (iter.hasNext()) {
+
+			Node<OWLDataProperty> currentNode = iter.next();
+			Set<DefaultEdge> edgeSet = dataPropertyNodeHierarchy.outgoingEdgesOf(currentNode);
+
+			if (edgeSet.isEmpty()) {
+				// The bottom node should not have any outgoing edges, so return this node
+				return currentNode;
+			}
+
+		}
+		// We should never get here if our hierarchy is implemented correctly
+		return null;
+	}
+
+	@Override
+	/**
+	 * Returns the top class node from our objectPropertyNodeHierarchy.
+	 * This node is the node without any outgoing edges
+	 * @return
+	 */
+	public Node<OWLObjectPropertyExpression> getTopObjectPropertyNode() {
+		Iterator<Node<OWLObjectPropertyExpression>> iter = objectPropertyNodeHierarchy.iterator();
+		while (iter.hasNext()) {
+
+			Node<OWLObjectPropertyExpression> currentNode = iter.next();
+			Set<DefaultEdge> edgeSet = objectPropertyNodeHierarchy.outgoingEdgesOf(currentNode);
+
+			if (edgeSet.isEmpty()) {
+				// The bottom node should not have any outgoing edges, so return this node
+				return currentNode;
+			}
+
+		}
+		// We should never get here if our hierarchy is implemented correctly
+		return null;
+	}
+
+	@Override
+	public NodeSet<OWLClass> getTypes(OWLNamedIndividual arg0, boolean arg1) {
+		// TODO Auto-generated method stub
+		return null;
+	}
+
+	@Override
+	public Node<OWLClass> getUnsatisfiableClasses() {
+		// TODO Auto-generated method stub
+		return null;
+	}
+
+	@Override
+	public void interrupt() {
+		// TODO Auto-generated method stub
+
+	}
+
+	@Override
+	public boolean isConsistent() {
+		// TODO Auto-generated method stub
+		return false;
+	}
+
+	@Override
+	public boolean isEntailed(OWLAxiom arg0) {
+		// TODO Auto-generated method stub
+		return false;
+	}
+
+	@Override
+	public boolean isEntailed(Set<? extends OWLAxiom> arg0) {
+		// TODO Auto-generated method stub
+		return false;
+	}
+
+	@Override
+	public boolean isEntailmentCheckingSupported(AxiomType<?> arg0) {
+		// TODO Auto-generated method stub
+		return false;
+	}
+
+	@Override
+	public boolean isPrecomputed(InferenceType arg0) {
+		// TODO Auto-generated method stub
+		return false;
+	}
+
+	@Override
+	public boolean isSatisfiable(OWLClassExpression arg0) {
+		// TODO Auto-generated method stub
+		return false;
+	}
+
+	@Override
+	public void precomputeInferences(InferenceType... arg0) {
+		// TODO Auto-generated method stub
+
+	}
+
+	@Override
+	public void ontologiesChanged(List<? extends OWLOntologyChange> list) throws OWLException {
+		for (OWLOntologyChange i : list) {
+			if (i.getOntology().equals(ontology)) {
+				if (bufferingMode.equals(BufferingMode.BUFFERING)) {
+					if (i.isAddAxiom()) {
+						additions.add(i.getAxiom());
+					}
+					else if (i.isRemoveAxiom()) {
+						removals.add(i.getAxiom());
+					}
+				}
+				else {
+					axioms = ontology.getAxioms();
+				}
+			}
+		}
+	}
 
 }
