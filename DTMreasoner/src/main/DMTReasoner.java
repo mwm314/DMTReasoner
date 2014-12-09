@@ -1,3 +1,4 @@
+package main;
 import java.io.File;
 import java.util.Collection;
 import java.util.HashSet;
@@ -82,9 +83,19 @@ public class DMTReasoner implements OWLReasoner, OWLOntologyChangeListener {
 	/**
 	 * Constructor for DMTReasoner
 	 */
-	DMTReasoner(OWLOntology ontology) {
+	public DMTReasoner(OWLOntology ontology) {
 		this.ontology = ontology;
 		axioms = ontology.getAxioms();
+	}
+	
+	/*
+	 * ONLY FOR TESTING. Get rid of this eventually.
+	 */
+	public DMTReasoner() {
+	}
+	
+	public void setClassNodeHierarchy(DirectedAcyclicGraph<Node<OWLClass>, DefaultEdge> classNodeHierarchy) {
+		this.classNodeHierarchy = classNodeHierarchy;
 	}
 
 	@Override
@@ -104,12 +115,12 @@ public class DMTReasoner implements OWLReasoner, OWLOntologyChangeListener {
 
 	}
 
-	@Override
 	/**
 	 * Returns the bottom class node from our classNodeHierarchy.
 	 * This node is the node without any incoming edges
 	 * @return
 	 */
+	@Override
 	public Node<OWLClass> getBottomClassNode() {
 		Iterator<Node<OWLClass>> iter = classNodeHierarchy.iterator();
 		while (iter.hasNext()) {
@@ -127,11 +138,11 @@ public class DMTReasoner implements OWLReasoner, OWLOntologyChangeListener {
 		return null;
 	}
 
-	@Override
 	/**
 	 * Returns the bottom data property node from our dataPropertyNodeHierarchy
 	 * This node is the node without any incoming edges
 	 */
+	@Override
 	public Node<OWLDataProperty> getBottomDataPropertyNode() {
 		Iterator<Node<OWLDataProperty>> iter = dataPropertyNodeHierarchy.iterator();
 		while (iter.hasNext()) {
@@ -149,11 +160,11 @@ public class DMTReasoner implements OWLReasoner, OWLOntologyChangeListener {
 		return null;
 	}
 
-	@Override
 	/**
 	 * Returns the bottom data property node from our objectPropertyNodeHierarchy
 	 * This node is the node without any incoming edges
 	 */
+	@Override
 	public Node<OWLObjectPropertyExpression> getBottomObjectPropertyNode() {
 		// Should this return Node<OWLObjectProperty>?! Confusing...
 		Iterator<Node<OWLObjectPropertyExpression>> iter = objectPropertyNodeHierarchy.iterator();
@@ -189,7 +200,6 @@ public class DMTReasoner implements OWLReasoner, OWLOntologyChangeListener {
 		return null;
 	}
 
-	@Override
 	/**
 	 * Individuals are represented by the individuals node set. We return the NodeSet of all individual Nodes
 	 * except for the node with the given individual. Same individuals are located in the same node.
@@ -197,6 +207,7 @@ public class DMTReasoner implements OWLReasoner, OWLOntologyChangeListener {
 	 * @param individual
 	 * @return
 	 */
+	@Override
 	public NodeSet<OWLNamedIndividual> getDifferentIndividuals(OWLNamedIndividual individual) {
 
 		Iterator<Node<OWLNamedIndividual>> iter = individuals.iterator();
@@ -229,10 +240,10 @@ public class DMTReasoner implements OWLReasoner, OWLOntologyChangeListener {
 		return null;
 	}
 
-	@Override
 	/**
 	 * Get the classes from our classNodeHierarchy which are equivalent to the given class expression.
 	 */
+	@Override
 	public Node<OWLClass> getEquivalentClasses(OWLClassExpression classExpr) {
 		if (classExpr.isAnonymous()) {
 			// TODO Tougher to deal with this, need to reason about anonymous class expressions.
@@ -267,20 +278,20 @@ public class DMTReasoner implements OWLReasoner, OWLOntologyChangeListener {
 		return null;
 	}
 
-	@Override
 	/**
 	 * Not entirely sure how "fresh entities" are defined. For now, we will disallow them
 	 */
+	@Override
 	public FreshEntityPolicy getFreshEntityPolicy() {
 		return FreshEntityPolicy.DISALLOW;
 	}
 
-	@Override
 	/**
 	 * This means that if two individuals are marked as being owl:sameAs, we group them into the same node.
 	 * So, if i,j,k are individuals all of class C, i owl:sameAs j, and we want to return all instances of C, then we will return a node set
 	 * with two nodes, one node with i and j, and the other node with k.
 	 */
+	@Override
 	public IndividualNodeSetPolicy getIndividualNodeSetPolicy() {
 		return IndividualNodeSetPolicy.BY_SAME_AS;
 	}
@@ -291,15 +302,14 @@ public class DMTReasoner implements OWLReasoner, OWLOntologyChangeListener {
 		return null;
 	}
 
-	@Override
 	/**
 	 * We do not handle inverse properties, so the DTMReasoner object will always throw an exception when this method is called
 	 * @param arg0
 	 * @return
 	 */
+	@Override
 	public Node<OWLObjectPropertyExpression> getInverseObjectProperties(OWLObjectPropertyExpression arg0) {
-		//Throw exception here
-		return null;
+		throw new DMTDoesNotSupportException("Inverse Properties not supported.");
 	}
 
 	@Override
@@ -357,7 +367,6 @@ public class DMTReasoner implements OWLReasoner, OWLOntologyChangeListener {
 		return ontology;
 	}
 
-	@Override
 	/**
 	 * Individuals are represented by the individuals node set. We return the Node of individuals that
 	 * is contains the specified individual. Same individuals are located in the same node.
@@ -365,6 +374,7 @@ public class DMTReasoner implements OWLReasoner, OWLOntologyChangeListener {
 	 * @param individual
 	 * @return
 	 */
+	@Override
 	public Node<OWLNamedIndividual> getSameIndividuals(OWLNamedIndividual individual) {
 		Iterator<Node<OWLNamedIndividual>> iter = individuals.iterator();
 		while (iter.hasNext()) {
@@ -382,12 +392,12 @@ public class DMTReasoner implements OWLReasoner, OWLOntologyChangeListener {
 		return null;
 	}
 
-	@Override
 	/**
 	 * Returns the sub dataProperties of the specified dataProperty.
 	 * @param direct
 	 * If direct is true, then we only grab the direct sub dataProperties (i.e. properties only one edge away in our data prop hierarchy)
 	 */
+	@Override
 	public NodeSet<OWLDataProperty> getSubDataProperties(OWLDataProperty dataProperty, boolean direct) {
 
 		OWLDataPropertyNodeSet instances = new OWLDataPropertyNodeSet();
@@ -547,12 +557,12 @@ public class DMTReasoner implements OWLReasoner, OWLOntologyChangeListener {
 		return 0;
 	}
 
-	@Override
 	/**
 	 * Returns the top class node from our classNodeHierarchy.
 	 * This node is the node without any outgoing edges
 	 * @return
 	 */
+	@Override
 	public Node<OWLClass> getTopClassNode() {
 		Iterator<Node<OWLClass>> iter = classNodeHierarchy.iterator();
 		while (iter.hasNext()) {
@@ -570,12 +580,12 @@ public class DMTReasoner implements OWLReasoner, OWLOntologyChangeListener {
 		return null;
 	}
 
-	@Override
 	/**
 	 * Returns the top class node from our dataPropertyNodeHierarchy.
 	 * This node is the node without any outgoing edges
 	 * @return
 	 */
+	@Override
 	public Node<OWLDataProperty> getTopDataPropertyNode() {
 		Iterator<Node<OWLDataProperty>> iter = dataPropertyNodeHierarchy.iterator();
 		while (iter.hasNext()) {
@@ -593,12 +603,12 @@ public class DMTReasoner implements OWLReasoner, OWLOntologyChangeListener {
 		return null;
 	}
 
-	@Override
 	/**
 	 * Returns the top class node from our objectPropertyNodeHierarchy.
 	 * This node is the node without any outgoing edges
 	 * @return
 	 */
+	@Override
 	public Node<OWLObjectPropertyExpression> getTopObjectPropertyNode() {
 		Iterator<Node<OWLObjectPropertyExpression>> iter = objectPropertyNodeHierarchy.iterator();
 		while (iter.hasNext()) {
@@ -622,11 +632,11 @@ public class DMTReasoner implements OWLReasoner, OWLOntologyChangeListener {
 		return null;
 	}
 
-	@Override
 	/**
 	 * Just return our bottom class node
 	 * @return
 	 */
+	@Override
 	public Node<OWLClass> getUnsatisfiableClasses() {
 		return getBottomClassNode();
 	}
@@ -637,11 +647,11 @@ public class DMTReasoner implements OWLReasoner, OWLOntologyChangeListener {
 
 	}
 
-	@Override
 	/**
 	 * In order to determine consistency, we check if our DAG contains only a topNode and bottomNode, and if the topNode is a singleton.
 	 * @return
 	 */
+	@Override
 	public boolean isConsistent() {
 		//If there is an edge between the top and bottom class nodes, then there are just two nodes
 		if (classNodeHierarchy.containsEdge(getTopClassNode(), getBottomClassNode())) {
@@ -709,5 +719,7 @@ public class DMTReasoner implements OWLReasoner, OWLOntologyChangeListener {
 			}
 		}
 	}
+	
+	
 
 }
