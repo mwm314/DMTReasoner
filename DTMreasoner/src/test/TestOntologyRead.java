@@ -29,6 +29,7 @@ import uk.ac.manchester.cs.owl.owlapi.OWLDataPropertyImpl;
 import uk.ac.manchester.cs.owl.owlapi.OWLDatatypeImpl;
 import uk.ac.manchester.cs.owl.owlapi.OWLLiteralImplString;
 import uk.ac.manchester.cs.owl.owlapi.OWLNamedIndividualImpl;
+import uk.ac.manchester.cs.owl.owlapi.OWLObjectIntersectionOfImpl;
 import uk.ac.manchester.cs.owl.owlapi.OWLObjectPropertyImpl;
 import uk.ac.manchester.cs.owl.owlapi.OWLObjectSomeValuesFromImpl;
 
@@ -59,7 +60,8 @@ public class TestOntologyRead {
 		Set<OWLAxiom> axioms = ont2.getAxioms();
 
 		Iterator<OWLAxiom> iter = axioms.iterator();
-
+                
+                HashSet<OWLClass> classes = new HashSet<>();
 		while (iter.hasNext()) {
 			OWLAxiom axiom = iter.next();
 			System.out.println("STRING: " + axiom.toString());
@@ -69,8 +71,14 @@ public class TestOntologyRead {
 				System.out.println("YES!");
 			}
 			System.out.println(axiom.getClassesInSignature());
+                        classes.addAll(axiom.getClassesInSignature());
 		}
                 OWLReasoner reasoner = new DMTReasonerFactory().createReasoner(ont2);
+                HashSet<OWLClass> union = new HashSet<>();
+                union.add(classes.toArray(new OWLClass[0])[0]);
+                union.add(classes.toArray(new OWLClass[0])[1]);
+                System.out.println(union);
+                System.out.println(reasoner.isSatisfiable(new OWLObjectIntersectionOfImpl(union)));
 		//test();
 		//test2();
 	}

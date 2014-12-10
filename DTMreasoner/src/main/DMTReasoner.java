@@ -1,7 +1,10 @@
 package main;
 
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Enumeration;
 import java.util.HashSet;
+import java.util.Hashtable;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
@@ -24,8 +27,10 @@ import org.semanticweb.owlapi.model.OWLException;
 import org.semanticweb.owlapi.model.OWLLiteral;
 import org.semanticweb.owlapi.model.OWLNamedIndividual;
 import org.semanticweb.owlapi.model.OWLObjectAllValuesFrom;
+import org.semanticweb.owlapi.model.OWLObjectIntersectionOf;
 import org.semanticweb.owlapi.model.OWLObjectProperty;
 import org.semanticweb.owlapi.model.OWLObjectPropertyExpression;
+import org.semanticweb.owlapi.model.OWLObjectUnionOf;
 import org.semanticweb.owlapi.model.OWLOntology;
 import org.semanticweb.owlapi.model.OWLOntologyChange;
 import org.semanticweb.owlapi.model.OWLOntologyChangeListener;
@@ -808,41 +813,56 @@ public class DMTReasoner implements OWLReasoner, OWLOntologyChangeListener {
      */
     //TODO: Spinning my wheels pretty badly here. Sorry :/. Sleeping on it for tonight.
     //Need to find satisfiability wrt our axioms
+    /*public boolean isSatisfiable(OWLClassExpression classExpr) {
+     //axioms
+
+     Node<OWLClass> constraintClasses = new OWLClassNode();
+     Node<OWLObjectPropertyExpression> constraintProperties = new OWLObjectPropertyNode();
+     if (classExpr.isAnonymous()) {
+     // Iterate through this as a set of conjuncts
+     Iterator<OWLClassExpression> iter = classExpr.asConjunctSet().iterator();
+     while (iter.hasNext()) {
+     OWLClassExpression expr = iter.next();
+     ClassExpressionType type = expr.getClassExpressionType();
+     if (type.equals(ClassExpressionType.OBJECT_ALL_VALUES_FROM)) {
+     OWLObjectAllValuesFrom subExpr = (OWLObjectAllValuesFrom) expr;
+     // I assume if we have (ForAll)R.C that C is the filler...but this is not really clear from the documentation
+     // addForAllToConstraintSystem(subExpr.getFiller(), constraintSystem);
+
+     // OWLObjectProperty prop = subExpr.getProperty().asOWLObjectProperty();
+     } else if (type.equals(ClassExpressionType.OBJECT_SOME_VALUES_FROM)) {
+
+     } else if (type.equals(ClassExpressionType.OWL_CLASS)) {
+
+     } else {
+     throw new DMTDoesNotSupportException("We only support universal restricitons and limited existential quantification");
+     }
+     }
+     return true;
+     } else {
+     // If it is not anonymous, we know it is a named class. So, it is satisfiable if it is not in the bottom node
+     if (!getBottomClassNode().contains(classExpr.asOWLClass())) {
+     return true;
+     } else {
+     return false;
+     }
+     }
+
+     }*/
     public boolean isSatisfiable(OWLClassExpression classExpr) {
-        //axioms
-
-        Node<OWLClass> constraintClasses = new OWLClassNode();
-        Node<OWLObjectPropertyExpression> constraintProperties = new OWLObjectPropertyNode();
-        if (classExpr.isAnonymous()) {
-            // Iterate through this as a set of conjuncts
-            Iterator<OWLClassExpression> iter = classExpr.asConjunctSet().iterator();
-            while (iter.hasNext()) {
-                OWLClassExpression expr = iter.next();
-                ClassExpressionType type = expr.getClassExpressionType();
-                if (type.equals(ClassExpressionType.OBJECT_ALL_VALUES_FROM)) {
-                    OWLObjectAllValuesFrom subExpr = (OWLObjectAllValuesFrom) expr;
-					// I assume if we have (ForAll)R.C that C is the filler...but this is not really clear from the documentation
-                    // addForAllToConstraintSystem(subExpr.getFiller(), constraintSystem);
-
-                    // OWLObjectProperty prop = subExpr.getProperty().asOWLObjectProperty();
-                } else if (type.equals(ClassExpressionType.OBJECT_SOME_VALUES_FROM)) {
-
-                } else if (type.equals(ClassExpressionType.OWL_CLASS)) {
-
-                } else {
-                    throw new DMTDoesNotSupportException("We only support universal restricitons and limited existential quantification");
-                }
-            }
-            return true;
-        } else {
-            // If it is not anonymous, we know it is a named class. So, it is satisfiable if it is not in the bottom node
-            if (!getBottomClassNode().contains(classExpr.asOWLClass())) {
-                return true;
-            } else {
+        OWLClass c = new OWLClassImpl(IRI.create("SatisfiabilityTestIRI"));
+        OWLSubClassOfAxiom f = new OWLSubClassOfAxiomImpl(c, classExpr, new HashSet<OWLAnnotation>());
+        Set<OWLSubClassOfAxiom> results = reasonClasses(f, false).get(c);
+        HashSet<OWLClassExpression> test = new HashSet<>();
+        for (OWLSubClassOfAxiom ax : results) {
+            test.add(ax.getSuperClass());
+        }
+        for (OWLClassExpression ex : test) {
+            if (test.contains(ex.getComplementNNF())) {
                 return false;
             }
         }
-
+        return true;
     }
 
     /**
@@ -887,21 +907,33 @@ public class DMTReasoner implements OWLReasoner, OWLOntologyChangeListener {
     }
 
     private void reason() {
-        reasonClasses();
+        reasonClasses(null, true);
         /*reasonProperties();
          reasonDataproperties();
          */
     }
 
-    private void reasonClasses() {
+    private Hashtable<OWLClass, Set<OWLSubClassOfAxiom>> reasonClasses(OWLSubClassOfAxiom test, boolean updateDag) {
         Set<OWLClass> classes = ontology.getClassesInSignature();
+        if (test != null) {
+            classes.add(test.getSubClass().asOWLClass());
+        }
         ArrayList<Set<OWLSubClassOfAxiom>> classDescriptions = new ArrayList<>();
         ArrayList<Boolean> primitives = new ArrayList<>();
         for (OWLClass c : classes) {
-            if (ontology.getSubClassAxiomsForSubClass(c).isEmpty()) {
+            Set<OWLSubClassOfAxiom> ax = ontology.getSubClassAxiomsForSubClass(c);
+            if (test != null) {
+                if (c.equals(test.getSubClass().asOWLClass())) {
+                    if (ax.isEmpty()) {
+                        ax = new HashSet<>();
+                    }
+                    ax.add(test);
+                }
+            }
+            if (ax.isEmpty()) {
                 classDescriptions.add(new HashSet<OWLSubClassOfAxiom>());
             } else {
-                classDescriptions.add(ontology.getSubClassAxiomsForSubClass(c));
+                classDescriptions.add(ax);
             }
             primitives.add(Boolean.TRUE);
         }
@@ -976,24 +1008,35 @@ public class DMTReasoner implements OWLReasoner, OWLOntologyChangeListener {
                             }
                         }
                     } else {
+                        //Atomic negation
                         if (d.isClassExpressionLiteral()) {
-                            if (classArray.contains(d.getComplementNNF().asOWLClass()) && !d.getComplementNNF().asOWLClass().equals(classArray.get(i))) {
-                                subs.add(a);
-                                HashSet<OWLClassExpression> de = new HashSet<>();
-                                for (OWLSubClassOfAxiom ax : classDescriptions.get(classArray.indexOf(d.getComplementNNF().asOWLClass()))) {
-                                    de.add(ax.getSuperClass().getComplementNNF());
+                            OWLClass negated = d.getComplementNNF().asOWLClass();
+                            if (classArray.contains(negated)) {
+                                if (!primitives.get(classArray.indexOf(negated)) && !classArray.get(i).equals(negated)) {
+                                    subs.add(a);
+                                    HashSet<OWLClassExpression> de = new HashSet<>();
+                                    for (OWLSubClassOfAxiom ax : classDescriptions.get(classArray.indexOf(negated))) {
+                                        de.add(ax.getSuperClass().getComplementNNF());
+                                    }
+                                    OWLObjectUnionOfImpl ce = new OWLObjectUnionOfImpl(de);
+                                    adds.add(new OWLSubClassOfAxiomImpl(classArray.get(i), ce, new HashSet<OWLAnnotation>()));
                                 }
-                                OWLObjectUnionOfImpl ce = new OWLObjectUnionOfImpl(de);
-                                adds.add(new OWLSubClassOfAxiomImpl(classArray.get(i), ce, new HashSet<OWLAnnotation>()));
                             }
-                        }
-                        else if(d.asConjunctSet().size() >= 1){
+                        } //Intersection
+                        else if (d instanceof OWLObjectIntersectionOf) {
                             subs.add(a);
-                            for(OWLClassExpression e : d.asConjunctSet()){
+                            for (OWLClassExpression e : d.asConjunctSet()) {
                                 adds.add(new OWLSubClassOfAxiomImpl(classArray.get(i), e, new HashSet<OWLAnnotation>()));
                             }
+                        } else if (d instanceof OWLObjectUnionOf) {
+                            if (d.asDisjunctSet().size() == 1) {
+                                subs.add(a);
+                                for (OWLClassExpression e : d.asDisjunctSet()) {
+                                    adds.add(new OWLSubClassOfAxiomImpl(classArray.get(i), e, new HashSet<OWLAnnotation>()));
+                                }
+                            }
                         }
-                        //TODO OTHER OPTIONS (UNION, INTERSECTION, ETC.
+                        //TODO OTHER OPTIONS (UNION, QUANTIFICATION, ETC.)
                     }
                 }
                 classDescriptions.get(i).removeAll(subs);
@@ -1032,14 +1075,21 @@ public class DMTReasoner implements OWLReasoner, OWLOntologyChangeListener {
                 }
             }
         }
-        for (int i = 0; i < classArray.size(); i++) {
-            System.out.println("CLASS: " + classArray.get(i));
-            System.out.println("SUBCLASSES: " + subsumptions.get(i));
-            System.out.println("FACTS: " + classDescriptions.get(i));
-        }
-        buildDAG(subsumptions, classArray, null);
-        System.out.println(classNodeHierarchy);
+        Hashtable<OWLClass, Set<OWLSubClassOfAxiom>> expressions = new Hashtable<>();
 
+        for (int i = 0; i < classArray.size(); i++) {
+            if (false) {
+                System.out.println("CLASS: " + classArray.get(i));
+                System.out.println("SUBCLASSES: " + subsumptions.get(i));
+                System.out.println("FACTS: " + classDescriptions.get(i));
+            }
+            expressions.put(classArray.get(i), classDescriptions.get(i));
+        }
+        if (updateDag) {
+            buildDAG(subsumptions, classArray, null);
+            System.out.println(classNodeHierarchy);
+        }
+        return expressions;
     }
 
     private void reasonProperties() {
