@@ -5,38 +5,24 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Set;
 
-import org.openrdf.model.Model;
+import main.*;
 import org.semanticweb.owlapi.apibinding.OWLManager;
-import org.semanticweb.owlapi.change.OntologyAnnotationChangeData;
 import org.semanticweb.owlapi.model.AxiomType;
-import org.semanticweb.owlapi.model.ClassExpressionType;
 import org.semanticweb.owlapi.model.IRI;
-import org.semanticweb.owlapi.model.OWLAnnotationProperty;
-import org.semanticweb.owlapi.model.OWLAnonymousIndividual;
 import org.semanticweb.owlapi.model.OWLAxiom;
 import org.semanticweb.owlapi.model.OWLClass;
 import org.semanticweb.owlapi.model.OWLClassExpression;
-import org.semanticweb.owlapi.model.OWLClassExpressionVisitor;
-import org.semanticweb.owlapi.model.OWLClassExpressionVisitorEx;
 import org.semanticweb.owlapi.model.OWLDataProperty;
 import org.semanticweb.owlapi.model.OWLDatatype;
-import org.semanticweb.owlapi.model.OWLDisjointClassesAxiom;
-import org.semanticweb.owlapi.model.OWLEntity;
 import org.semanticweb.owlapi.model.OWLLiteral;
 import org.semanticweb.owlapi.model.OWLNamedIndividual;
-import org.semanticweb.owlapi.model.OWLObject;
 import org.semanticweb.owlapi.model.OWLObjectIntersectionOf;
 import org.semanticweb.owlapi.model.OWLObjectProperty;
 import org.semanticweb.owlapi.model.OWLObjectPropertyExpression;
 import org.semanticweb.owlapi.model.OWLObjectSomeValuesFrom;
-import org.semanticweb.owlapi.model.OWLObjectVisitor;
-import org.semanticweb.owlapi.model.OWLObjectVisitorEx;
 import org.semanticweb.owlapi.model.OWLOntology;
 import org.semanticweb.owlapi.model.OWLOntologyManager;
-import org.semanticweb.owlapi.util.IRIComparator;
-
-import uk.ac.manchester.cs.owl.owlapi.OWL2DatatypeImpl;
-import uk.ac.manchester.cs.owl.owlapi.OWLClassExpressionImpl;
+import org.semanticweb.owlapi.reasoner.OWLReasoner;
 import uk.ac.manchester.cs.owl.owlapi.OWLClassImpl;
 import uk.ac.manchester.cs.owl.owlapi.OWLDataFactoryImpl;
 import uk.ac.manchester.cs.owl.owlapi.OWLDataPropertyImpl;
@@ -68,8 +54,8 @@ public class TestOntologyRead {
 		 * File("path to ontology"));
 		 */
 		OWLOntologyManager ontManager = OWLManager.createOWLOntologyManager();
-		OWLOntology ont = ontManager.loadOntologyFromOntologyDocument(new File("C:/Users/Matt/Desktop/FinalOntology/testOntology.owl"));
-		OWLOntology ont2 = ontManager.loadOntologyFromOntologyDocument(new File("C:/Users/Matt/Desktop/FinalOntology/simpleParent.owl"));
+		OWLOntology ont = ontManager.loadOntologyFromOntologyDocument(new File("C:\\Users\\Keechwa\\Documents\\GitHub\\DMTReasoner\\DTMreasoner\\src\\test\\testOntology.owl"));
+		OWLOntology ont2 = ontManager.loadOntologyFromOntologyDocument(new File("C:\\Users\\Keechwa\\Documents\\GitHub\\DMTReasoner\\DTMreasoner\\src\\test\\simpleParent.owl"));
 		Set<OWLAxiom> axioms = ont2.getAxioms();
 
 		Iterator<OWLAxiom> iter = axioms.iterator();
@@ -84,7 +70,7 @@ public class TestOntologyRead {
 			}
 			System.out.println(axiom.getClassesInSignature());
 		}
-
+                OWLReasoner reasoner = new DMTReasonerFactory().createReasoner(ont2);
 		//test();
 		//test2();
 	}
