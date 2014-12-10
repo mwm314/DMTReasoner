@@ -83,6 +83,7 @@ public class DMTReasoner implements OWLReasoner, OWLOntologyChangeListener {
      * 
      * private OWLClassNode topClassNode = OWLClassNode.getTopNode(); private OWLDataPropertyNode topDataPropertyNode = OWLDataPropertyNode.getTopNode(); private OWLObjectPropertyNode topObjectPropertyNode = OWLObjectPropertyNode.getTopNode();
      */
+
     /**
      * Constructor for DMTReasoner
      */
@@ -986,6 +987,12 @@ public class DMTReasoner implements OWLReasoner, OWLOntologyChangeListener {
                                 adds.add(new OWLSubClassOfAxiomImpl(classArray.get(i), ce, new HashSet<OWLAnnotation>()));
                             }
                         }
+                        else if(d.asConjunctSet().size() >= 1){
+                            subs.add(a);
+                            for(OWLClassExpression e : d.asConjunctSet()){
+                                adds.add(new OWLSubClassOfAxiomImpl(classArray.get(i), e, new HashSet<OWLAnnotation>()));
+                            }
+                        }
                         //TODO OTHER OPTIONS (UNION, INTERSECTION, ETC.
                     }
                 }
@@ -1025,12 +1032,12 @@ public class DMTReasoner implements OWLReasoner, OWLOntologyChangeListener {
                 }
             }
         }
+        for (int i = 0; i < classArray.size(); i++) {
+            System.out.println("CLASS: " + classArray.get(i));
+            System.out.println("SUBCLASSES: " + subsumptions.get(i));
+            System.out.println("FACTS: " + classDescriptions.get(i));
+        }
         buildDAG(subsumptions, classArray, null);
-        /*for (int i = 0; i < classArray.size(); i++) {
-         System.out.println(classArray.get(i));
-         System.out.println(subsumptions.get(i));
-         System.out.println(classDescriptions.get(i));
-         }*/
         System.out.println(classNodeHierarchy);
 
     }
