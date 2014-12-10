@@ -1,4 +1,5 @@
 package main;
+
 import java.io.File;
 import java.util.Collection;
 import java.util.HashSet;
@@ -11,17 +12,28 @@ import org.jgrapht.experimental.dag.*;
 import org.semanticweb.owlapi.apibinding.OWLManager;
 import org.semanticweb.owlapi.change.OntologyAnnotationChangeData;
 import org.semanticweb.owlapi.model.AxiomType;
+import org.semanticweb.owlapi.model.ClassExpressionType;
+import org.semanticweb.owlapi.model.OWLAnnotationProperty;
+import org.semanticweb.owlapi.model.OWLAnonymousIndividual;
 import org.semanticweb.owlapi.model.OWLAxiom;
+import org.semanticweb.owlapi.model.OWLAxiomVisitor;
+import org.semanticweb.owlapi.model.OWLAxiomVisitorEx;
 import org.semanticweb.owlapi.model.OWLClass;
 import org.semanticweb.owlapi.model.OWLClassExpression;
 import org.semanticweb.owlapi.model.OWLDataProperty;
 import org.semanticweb.owlapi.model.OWLDataPropertyExpression;
+import org.semanticweb.owlapi.model.OWLDatatype;
+import org.semanticweb.owlapi.model.OWLEntity;
 import org.semanticweb.owlapi.model.OWLException;
 import org.semanticweb.owlapi.model.OWLIndividual;
 import org.semanticweb.owlapi.model.OWLLiteral;
 import org.semanticweb.owlapi.model.OWLNamedIndividual;
+import org.semanticweb.owlapi.model.OWLObject;
+import org.semanticweb.owlapi.model.OWLObjectAllValuesFrom;
 import org.semanticweb.owlapi.model.OWLObjectProperty;
 import org.semanticweb.owlapi.model.OWLObjectPropertyExpression;
+import org.semanticweb.owlapi.model.OWLObjectVisitor;
+import org.semanticweb.owlapi.model.OWLObjectVisitorEx;
 import org.semanticweb.owlapi.model.OWLOntology;
 import org.semanticweb.owlapi.model.OWLOntologyChange;
 import org.semanticweb.owlapi.model.OWLOntologyChangeListener;
@@ -35,6 +47,7 @@ import org.semanticweb.owlapi.reasoner.NodeSet;
 import org.semanticweb.owlapi.reasoner.OWLReasoner;
 import org.semanticweb.owlapi.reasoner.impl.OWLClassNode;
 import org.semanticweb.owlapi.reasoner.impl.OWLClassNodeSet;
+import org.semanticweb.owlapi.reasoner.impl.OWLDataPropertyNode;
 import org.semanticweb.owlapi.reasoner.impl.OWLDataPropertyNodeSet;
 import org.semanticweb.owlapi.reasoner.impl.OWLNamedIndividualNodeSet;
 import org.semanticweb.owlapi.reasoner.impl.OWLObjectPropertyNode;
@@ -42,6 +55,7 @@ import org.semanticweb.owlapi.reasoner.impl.OWLObjectPropertyNodeSet;
 import org.semanticweb.owlapi.util.Version;
 
 import uk.ac.manchester.cs.owl.owlapi.OWLClassImpl;
+import uk.ac.manchester.cs.owl.owlapi.OWLDataPropertyImpl;
 
 public class DMTReasoner implements OWLReasoner, OWLOntologyChangeListener {
 	// List of class variables
@@ -87,13 +101,13 @@ public class DMTReasoner implements OWLReasoner, OWLOntologyChangeListener {
 		this.ontology = ontology;
 		axioms = ontology.getAxioms();
 	}
-	
+
 	/*
 	 * ONLY FOR TESTING. Get rid of this eventually.
 	 */
 	public DMTReasoner() {
 	}
-	
+
 	public void setClassNodeHierarchy(DirectedAcyclicGraph<Node<OWLClass>, DefaultEdge> classNodeHierarchy) {
 		this.classNodeHierarchy = classNodeHierarchy;
 	}
@@ -116,8 +130,8 @@ public class DMTReasoner implements OWLReasoner, OWLOntologyChangeListener {
 	}
 
 	/**
-	 * Returns the bottom class node from our classNodeHierarchy.
-	 * This node is the node without any incoming edges
+	 * Returns the bottom class node from our classNodeHierarchy. This node is the node without any incoming edges
+	 * 
 	 * @return
 	 */
 	@Override
@@ -139,8 +153,7 @@ public class DMTReasoner implements OWLReasoner, OWLOntologyChangeListener {
 	}
 
 	/**
-	 * Returns the bottom data property node from our dataPropertyNodeHierarchy
-	 * This node is the node without any incoming edges
+	 * Returns the bottom data property node from our dataPropertyNodeHierarchy This node is the node without any incoming edges
 	 */
 	@Override
 	public Node<OWLDataProperty> getBottomDataPropertyNode() {
@@ -161,8 +174,7 @@ public class DMTReasoner implements OWLReasoner, OWLOntologyChangeListener {
 	}
 
 	/**
-	 * Returns the bottom data property node from our objectPropertyNodeHierarchy
-	 * This node is the node without any incoming edges
+	 * Returns the bottom data property node from our objectPropertyNodeHierarchy This node is the node without any incoming edges
 	 */
 	@Override
 	public Node<OWLObjectPropertyExpression> getBottomObjectPropertyNode() {
@@ -201,9 +213,8 @@ public class DMTReasoner implements OWLReasoner, OWLOntologyChangeListener {
 	}
 
 	/**
-	 * Individuals are represented by the individuals node set. We return the NodeSet of all individual Nodes
-	 * except for the node with the given individual. Same individuals are located in the same node.
-	 * Returns null if the individual is not anywhere in the NodeSet of individuals
+	 * Individuals are represented by the individuals node set. We return the NodeSet of all individual Nodes except for the node with the given individual. Same individuals are located in the same node. Returns null if the individual is not anywhere in the NodeSet of individuals
+	 * 
 	 * @param individual
 	 * @return
 	 */
@@ -223,21 +234,106 @@ public class DMTReasoner implements OWLReasoner, OWLOntologyChangeListener {
 	}
 
 	@Override
+	/**
+	 * Returns a NodeSet with one node representing the disjoint classes.
+	 *
+	 */
 	public NodeSet<OWLClass> getDisjointClasses(OWLClassExpression owlClassExpr) {
-		// TODO Auto-generated method stub
-		return null;
+		if (!owlClassExpr.isAnonymous()) {
+			
+			//Get all the disjoint classes
+			OWLClassNodeSet allDisjointClasses = new OWLClassNodeSet();
+			for (OWLAxiom a : axioms) {
+				if (a.getAxiomType() == AxiomType.DISJOINT_CLASSES) {
+					OWLClassNode node = new OWLClassNode();
+					for (OWLClass c : a.getClassesInSignature()) {
+						node.add(c);
+					}
+					allDisjointClasses.addNode(node);
+				}
+			}
+			
+			
+			for (Node<OWLClass> n : allDisjointClasses) {
+				if (n.contains(owlClassExpr.asOWLClass())) {
+					OWLClassNodeSet disjointFromExpr = new OWLClassNodeSet();
+					disjointFromExpr.addNode(n);
+					return disjointFromExpr;
+				}
+			}
+			
+			//No disjoint classes found
+			return new OWLClassNodeSet();
+		}
+		//TODO Partial implementation
+		else throw new DMTDoesNotSupportException("Only grab disjoint classes for a given owl class, not owlclass expression");
 	}
 
 	@Override
+	/**
+	 * Returns a NodeSet such that every class in a given node are disjoint from one another
+	 */
 	public NodeSet<OWLDataProperty> getDisjointDataProperties(OWLDataPropertyExpression dataPropExpr) {
-		// TODO Auto-generated method stub
-		return null;
+		if (!dataPropExpr.isAnonymous()) {
+			
+			//Get all the disjoint classes
+			OWLDataPropertyNodeSet allDisjointDataProperties = new OWLDataPropertyNodeSet();
+			for (OWLAxiom a : axioms) {
+				if (a.getAxiomType() == AxiomType.DISJOINT_DATA_PROPERTIES) {
+					OWLDataPropertyNode node = new OWLDataPropertyNode();
+					for (OWLDataProperty c : a.getDataPropertiesInSignature()) {
+						node.add(c);
+					}
+					allDisjointDataProperties.addNode(node);
+				}
+			}
+			
+			
+			for (Node<OWLDataProperty> n : allDisjointDataProperties) {
+				if (n.contains(dataPropExpr.asOWLDataProperty())) {
+					OWLDataPropertyNodeSet disjointFromExpr = new OWLDataPropertyNodeSet();
+					disjointFromExpr.addNode(n);
+					return disjointFromExpr;
+				}
+			}
+			
+			//No disjoint DataPropertyes found
+			return new OWLDataPropertyNodeSet();
+		}
+		//TODO Partial implementation
+		else throw new DMTDoesNotSupportException("Only grab disjoint classes for a given owl dataproperty, not owl dataproperty expression");
 	}
 
 	@Override
 	public NodeSet<OWLObjectPropertyExpression> getDisjointObjectProperties(OWLObjectPropertyExpression objectPropExpr) {
-		// TODO Auto-generated method stub
-		return null;
+		if (!objectPropExpr.isAnonymous()) {
+			
+			//Get all the disjoint classes
+			OWLObjectPropertyNodeSet allDisjointObjectProperties = new OWLObjectPropertyNodeSet();
+			for (OWLAxiom a : axioms) {
+				if (a.getAxiomType() == AxiomType.DISJOINT_OBJECT_PROPERTIES) {
+					OWLObjectPropertyNode node = new OWLObjectPropertyNode();
+					for (OWLObjectProperty c : a.getObjectPropertiesInSignature()) {
+						node.add(c);
+					}
+					allDisjointObjectProperties.addNode(node);
+				}
+			}
+			
+			
+			for (Node<OWLObjectPropertyExpression> n : allDisjointObjectProperties) {
+				if (n.contains(objectPropExpr.asOWLObjectProperty())) {
+					OWLObjectPropertyNodeSet disjointFromExpr = new OWLObjectPropertyNodeSet();
+					disjointFromExpr.addNode(n);
+					return disjointFromExpr;
+				}
+			}
+			
+			//No disjoint DataPropertyes found
+			return new OWLObjectPropertyNodeSet();
+		}
+		//TODO Partial implementation
+		else throw new DMTDoesNotSupportException("Only grab disjoint classes for a given owl object property, not owl object property expression");
 	}
 
 	/**
@@ -287,9 +383,7 @@ public class DMTReasoner implements OWLReasoner, OWLOntologyChangeListener {
 	}
 
 	/**
-	 * This means that if two individuals are marked as being owl:sameAs, we group them into the same node.
-	 * So, if i,j,k are individuals all of class C, i owl:sameAs j, and we want to return all instances of C, then we will return a node set
-	 * with two nodes, one node with i and j, and the other node with k.
+	 * This means that if two individuals are marked as being owl:sameAs, we group them into the same node. So, if i,j,k are individuals all of class C, i owl:sameAs j, and we want to return all instances of C, then we will return a node set with two nodes, one node with i and j, and the other node with k.
 	 */
 	@Override
 	public IndividualNodeSetPolicy getIndividualNodeSetPolicy() {
@@ -304,6 +398,7 @@ public class DMTReasoner implements OWLReasoner, OWLOntologyChangeListener {
 
 	/**
 	 * We do not handle inverse properties, so the DTMReasoner object will always throw an exception when this method is called
+	 * 
 	 * @param arg0
 	 * @return
 	 */
@@ -313,7 +408,7 @@ public class DMTReasoner implements OWLReasoner, OWLOntologyChangeListener {
 	}
 
 	@Override
-	public NodeSet<OWLClass> getObjectPropertyDomains(OWLObjectPropertyExpression arg0, boolean arg1) {
+	public NodeSet<OWLClass> getObjectPropertyDomains(OWLObjectPropertyExpression pe, boolean direct) {
 		// TODO Auto-generated method stub
 		return null;
 	}
@@ -368,9 +463,8 @@ public class DMTReasoner implements OWLReasoner, OWLOntologyChangeListener {
 	}
 
 	/**
-	 * Individuals are represented by the individuals node set. We return the Node of individuals that
-	 * is contains the specified individual. Same individuals are located in the same node.
-	 * Returns null if the individual is not anywhere in the NodeSet of individuals
+	 * Individuals are represented by the individuals node set. We return the Node of individuals that is contains the specified individual. Same individuals are located in the same node. Returns null if the individual is not anywhere in the NodeSet of individuals
+	 * 
 	 * @param individual
 	 * @return
 	 */
@@ -394,8 +488,9 @@ public class DMTReasoner implements OWLReasoner, OWLOntologyChangeListener {
 
 	/**
 	 * Returns the sub dataProperties of the specified dataProperty.
+	 * 
 	 * @param direct
-	 * If direct is true, then we only grab the direct sub dataProperties (i.e. properties only one edge away in our data prop hierarchy)
+	 *            If direct is true, then we only grab the direct sub dataProperties (i.e. properties only one edge away in our data prop hierarchy)
 	 */
 	@Override
 	public NodeSet<OWLDataProperty> getSubDataProperties(OWLDataProperty dataProperty, boolean direct) {
@@ -558,8 +653,8 @@ public class DMTReasoner implements OWLReasoner, OWLOntologyChangeListener {
 	}
 
 	/**
-	 * Returns the top class node from our classNodeHierarchy.
-	 * This node is the node without any outgoing edges
+	 * Returns the top class node from our classNodeHierarchy. This node is the node without any outgoing edges
+	 * 
 	 * @return
 	 */
 	@Override
@@ -581,8 +676,8 @@ public class DMTReasoner implements OWLReasoner, OWLOntologyChangeListener {
 	}
 
 	/**
-	 * Returns the top class node from our dataPropertyNodeHierarchy.
-	 * This node is the node without any outgoing edges
+	 * Returns the top class node from our dataPropertyNodeHierarchy. This node is the node without any outgoing edges
+	 * 
 	 * @return
 	 */
 	@Override
@@ -604,8 +699,8 @@ public class DMTReasoner implements OWLReasoner, OWLOntologyChangeListener {
 	}
 
 	/**
-	 * Returns the top class node from our objectPropertyNodeHierarchy.
-	 * This node is the node without any outgoing edges
+	 * Returns the top class node from our objectPropertyNodeHierarchy. This node is the node without any outgoing edges
+	 * 
 	 * @return
 	 */
 	@Override
@@ -634,6 +729,7 @@ public class DMTReasoner implements OWLReasoner, OWLOntologyChangeListener {
 
 	/**
 	 * Just return our bottom class node
+	 * 
 	 * @return
 	 */
 	@Override
@@ -649,15 +745,16 @@ public class DMTReasoner implements OWLReasoner, OWLOntologyChangeListener {
 
 	/**
 	 * In order to determine consistency, we check if our DAG contains only a topNode and bottomNode, and if the topNode is a singleton.
+	 * 
 	 * @return
 	 */
 	@Override
 	public boolean isConsistent() {
-		//If there is an edge between the top and bottom class nodes, then there are just two nodes
+		// If there is an edge between the top and bottom class nodes, then there are just two nodes
 		if (classNodeHierarchy.containsEdge(getTopClassNode(), getBottomClassNode())) {
 			if (getTopClassNode().isSingleton()) {
 				if (!getBottomClassNode().isSingleton()) {
-					//If all classes are in the bottomClassNode, return true.
+					// If all classes are in the bottomClassNode, return true.
 					return true;
 				}
 			}
@@ -690,9 +787,72 @@ public class DMTReasoner implements OWLReasoner, OWLOntologyChangeListener {
 	}
 
 	@Override
-	public boolean isSatisfiable(OWLClassExpression arg0) {
-		// TODO Auto-generated method stub
-		return false;
+	/**
+	 * My attempt at testing whether a class expression is satisfiable for FL-.
+	 * So we are assuming no unions or negation of any kind. Just dealing with Exists, ForAll, and Intersection.
+	 */
+	//TODO: Spinning my wheels pretty badly here. Sorry :/. Sleeping on it for tonight.
+	//Need to find satisfiability wrt our axioms
+	public boolean isSatisfiable(OWLClassExpression classExpr) {
+		//axioms
+
+		Node<OWLClass> constraintClasses = new OWLClassNode();
+		Node<OWLObjectPropertyExpression> constraintProperties = new OWLObjectPropertyNode();
+		if (classExpr.isAnonymous()) {
+			// Iterate through this as a set of conjuncts
+			Iterator<OWLClassExpression> iter = classExpr.asConjunctSet().iterator();
+			while (iter.hasNext()) {
+				OWLClassExpression expr = iter.next();
+				ClassExpressionType type = expr.getClassExpressionType();
+				if (type.equals(ClassExpressionType.OBJECT_ALL_VALUES_FROM)) {
+					OWLObjectAllValuesFrom subExpr = (OWLObjectAllValuesFrom) expr;
+					// I assume if we have (ForAll)R.C that C is the filler...but this is not really clear from the documentation
+					// addForAllToConstraintSystem(subExpr.getFiller(), constraintSystem);
+
+					// OWLObjectProperty prop = subExpr.getProperty().asOWLObjectProperty();
+
+				}
+				else if (type.equals(ClassExpressionType.OBJECT_SOME_VALUES_FROM)) {
+
+				}
+				else if (type.equals(ClassExpressionType.OWL_CLASS)) {
+
+				}
+				else
+					throw new DMTDoesNotSupportException("We only support universal restricitons and limited existential quantification");
+			}
+			return true;
+		}
+
+		else {
+			// If it is not anonymous, we know it is a named class. So, it is satisfiable if it is not in the bottom node
+			if (!getBottomClassNode().contains(classExpr.asOWLClass())) {
+				return true;
+			}
+			else {
+				return false;
+			}
+		}
+
+	}
+
+	/**
+	 * Recursively add all possible classes to our constraint system
+	 * 
+	 * @param expr
+	 * @param cs
+	 */
+	//TODO Linked to problem above, sleeping on it
+	private void addForallToConstraintSystem(OWLObjectAllValuesFrom expr, OWLClassNode cs) {
+		if (expr.isAnonymous()) {
+			Iterator<OWLClassExpression> iter = expr.asConjunctSet().iterator();
+			while (iter.hasNext()) {
+
+			}
+		}
+		else {
+			cs.add(expr.asOWLClass());
+		}
 	}
 
 	@Override
@@ -719,7 +879,5 @@ public class DMTReasoner implements OWLReasoner, OWLOntologyChangeListener {
 			}
 		}
 	}
-	
-	
 
 }
