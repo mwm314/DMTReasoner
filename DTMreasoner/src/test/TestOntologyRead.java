@@ -57,7 +57,7 @@ public class TestOntologyRead {
 		OWLOntologyManager ontManager = OWLManager.createOWLOntologyManager();
 		OWLOntology ont = ontManager.loadOntologyFromOntologyDocument(new File("C:\\Users\\Keechwa\\Documents\\GitHub\\DMTReasoner\\DTMreasoner\\src\\test\\testOntology.owl"));
 		//OWLOntology ont2 = ontManager.loadOntologyFromOntologyDocument(new File("C:\\Users\\Keechwa\\Documents\\GitHub\\DMTReasoner\\DTMreasoner\\src\\test\\simpleParent.owl"));
-		OWLOntology ont3 = ontManager.loadOntologyFromOntologyDocument(new File("C:\\Users\\Keechwa\\Documents\\GitHub\\DMTReasoner\\DTMreasoner\\src\\test\\moreComplexParent.owl"));
+		OWLOntology ont3 = ontManager.loadOntologyFromOntologyDocument(new File("C:\\Users\\Keechwa\\Documents\\GitHub\\DMTReasoner\\DTMreasoner\\src\\test\\evenMoreComplexParent.owl"));
                 Set<OWLAxiom> axioms = ont3.getAxioms();
 
 		Iterator<OWLAxiom> iter = axioms.iterator();
@@ -75,11 +75,11 @@ public class TestOntologyRead {
                         classes.addAll(axiom.getClassesInSignature());
 		}
                 OWLReasoner reasoner = new DMTReasonerFactory().createReasoner(ont3);
-                HashSet<OWLClass> union = new HashSet<>();
+                HashSet<OWLClassExpression> union = new HashSet<>();
                 union.add(classes.toArray(new OWLClass[0])[0]);
-                union.add(classes.toArray(new OWLClass[0])[7]);
-                System.out.println(union);
+                union.add(classes.toArray(new OWLClass[0])[3]);
                 System.out.println(reasoner.isSatisfiable(new OWLObjectIntersectionOfImpl(union)));
+                System.out.println(union);
 		//test();
 		//test2();
 	}
