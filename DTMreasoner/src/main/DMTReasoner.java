@@ -30,6 +30,7 @@ import org.semanticweb.owlapi.model.OWLObjectAllValuesFrom;
 import org.semanticweb.owlapi.model.OWLObjectIntersectionOf;
 import org.semanticweb.owlapi.model.OWLObjectProperty;
 import org.semanticweb.owlapi.model.OWLObjectPropertyExpression;
+import org.semanticweb.owlapi.model.OWLObjectSomeValuesFrom;
 import org.semanticweb.owlapi.model.OWLObjectUnionOf;
 import org.semanticweb.owlapi.model.OWLOntology;
 import org.semanticweb.owlapi.model.OWLOntologyChange;
@@ -51,6 +52,7 @@ import org.semanticweb.owlapi.reasoner.impl.OWLObjectPropertyNode;
 import org.semanticweb.owlapi.reasoner.impl.OWLObjectPropertyNodeSet;
 import org.semanticweb.owlapi.util.Version;
 import uk.ac.manchester.cs.owl.owlapi.OWLClassImpl;
+import uk.ac.manchester.cs.owl.owlapi.OWLObjectSomeValuesFromImpl;
 import uk.ac.manchester.cs.owl.owlapi.OWLObjectUnionOfImpl;
 import uk.ac.manchester.cs.owl.owlapi.OWLSubClassOfAxiomImpl;
 
@@ -856,6 +858,14 @@ public class DMTReasoner implements OWLReasoner, OWLOntologyChangeListener {
         HashSet<OWLClassExpression> test = new HashSet<>();
         for (OWLSubClassOfAxiom ax : results) {
             test.add(ax.getSuperClass());
+            if (!ax.getSuperClass().isAnonymous()) {
+                String iri = ax.getSuperClass().asOWLClass().getIRI().toString();
+                if (iri.endsWith("*")) {
+                    iri = iri.substring(0, iri.length() - 1);
+                    OWLClass destar = new OWLClassImpl(IRI.create(iri));
+                    test.add(destar);
+                }
+            }
         }
         for (OWLClassExpression ex : test) {
             if (test.contains(ex.getComplementNNF())) {
@@ -994,57 +1004,7 @@ public class DMTReasoner implements OWLReasoner, OWLOntologyChangeListener {
         }
         //Extension
         for (int i = 0; i < classArray.size(); i++) {
-            boolean done = false;
-            while (!done) {
-                ArrayList<OWLSubClassOfAxiom> adds = new ArrayList<>();
-                ArrayList<OWLSubClassOfAxiom> subs = new ArrayList<>();
-                for (OWLSubClassOfAxiom a : classDescriptions.get(i)) {
-                    OWLClassExpression d = a.getSuperClass().getNNF();
-                    if (!d.isAnonymous()) {
-                        if (classArray.contains(d.asOWLClass()) && !d.asOWLClass().equals(classArray.get(i))) {
-                            subs.add(a);
-                            for (OWLSubClassOfAxiom ax : classDescriptions.get(classArray.indexOf(d.asOWLClass()))) {
-                                adds.add(new OWLSubClassOfAxiomImpl(classArray.get(i), ax.getSuperClass(), new HashSet<OWLAnnotation>()));
-                            }
-                        }
-                    } else {
-                        //Atomic negation
-                        if (d.isClassExpressionLiteral()) {
-                            OWLClass negated = d.getComplementNNF().asOWLClass();
-                            if (classArray.contains(negated)) {
-                                if (!primitives.get(classArray.indexOf(negated)) && !classArray.get(i).equals(negated)) {
-                                    subs.add(a);
-                                    HashSet<OWLClassExpression> de = new HashSet<>();
-                                    for (OWLSubClassOfAxiom ax : classDescriptions.get(classArray.indexOf(negated))) {
-                                        de.add(ax.getSuperClass().getComplementNNF());
-                                    }
-                                    OWLObjectUnionOfImpl ce = new OWLObjectUnionOfImpl(de);
-                                    adds.add(new OWLSubClassOfAxiomImpl(classArray.get(i), ce, new HashSet<OWLAnnotation>()));
-                                }
-                            }
-                        } //Intersection
-                        else if (d instanceof OWLObjectIntersectionOf) {
-                            subs.add(a);
-                            for (OWLClassExpression e : d.asConjunctSet()) {
-                                adds.add(new OWLSubClassOfAxiomImpl(classArray.get(i), e, new HashSet<OWLAnnotation>()));
-                            }
-                        } else if (d instanceof OWLObjectUnionOf) {
-                            if (d.asDisjunctSet().size() == 1) {
-                                subs.add(a);
-                                for (OWLClassExpression e : d.asDisjunctSet()) {
-                                    adds.add(new OWLSubClassOfAxiomImpl(classArray.get(i), e, new HashSet<OWLAnnotation>()));
-                                }
-                            }
-                        }
-                        //TODO OTHER OPTIONS (UNION, QUANTIFICATION, ETC.)
-                    }
-                }
-                classDescriptions.get(i).removeAll(subs);
-                classDescriptions.get(i).addAll(adds);
-                if (adds.equals(subs)) {
-                    done = true;
-                }
-            }
+            extend(classArray.get(i), classDescriptions.get(i), classArray, classDescriptions, primitives);
         }
         //Conversion
         ArrayList<ArrayList<OWLClassExpression>> subclassLists = new ArrayList<>();
@@ -1078,7 +1038,7 @@ public class DMTReasoner implements OWLReasoner, OWLOntologyChangeListener {
         Hashtable<OWLClass, Set<OWLSubClassOfAxiom>> expressions = new Hashtable<>();
 
         for (int i = 0; i < classArray.size(); i++) {
-            if (false) {
+            if (true) {
                 System.out.println("CLASS: " + classArray.get(i));
                 System.out.println("SUBCLASSES: " + subsumptions.get(i));
                 System.out.println("FACTS: " + classDescriptions.get(i));
@@ -1159,6 +1119,84 @@ public class DMTReasoner implements OWLReasoner, OWLOntologyChangeListener {
                 } catch (DirectedAcyclicGraph.CycleFoundException ex) {
                     System.out.println(ex);
                 }
+            }
+        }
+    }
+
+    private void extend(OWLClass extendClass, Set<OWLSubClassOfAxiom> extendClassDescriptions, ArrayList<OWLClass> classArray, ArrayList<Set<OWLSubClassOfAxiom>> classDescriptions, ArrayList<Boolean> primitives) {
+        boolean done = false;
+        while (!done) {
+            ArrayList<OWLSubClassOfAxiom> adds = new ArrayList<>();
+            ArrayList<OWLSubClassOfAxiom> subs = new ArrayList<>();
+            for (OWLSubClassOfAxiom a : extendClassDescriptions) {
+                OWLClassExpression d = a.getSuperClass().getNNF();
+                if (!d.isAnonymous()) {
+                    if (classArray.contains(d.asOWLClass()) && !d.asOWLClass().equals(extendClass)) {
+                        subs.add(a);
+                        for (OWLSubClassOfAxiom ax : classDescriptions.get(classArray.indexOf(d.asOWLClass()))) {
+                            adds.add(new OWLSubClassOfAxiomImpl(extendClass, ax.getSuperClass(), new HashSet<OWLAnnotation>()));
+                        }
+                    }
+                } else {
+                    //Atomic negation
+                    if (d.isClassExpressionLiteral()) {
+                        OWLClass negated = d.getComplementNNF().asOWLClass();
+                        if (classArray.contains(negated)) {
+                            if (!primitives.get(classArray.indexOf(negated)) && !extendClass.equals(negated)) {
+                                subs.add(a);
+                                HashSet<OWLClassExpression> de = new HashSet<>();
+                                for (OWLSubClassOfAxiom ax : classDescriptions.get(classArray.indexOf(negated))) {
+                                    de.add(ax.getSuperClass().getComplementNNF());
+                                }
+                                OWLObjectUnionOfImpl ce = new OWLObjectUnionOfImpl(de);
+                                adds.add(new OWLSubClassOfAxiomImpl(extendClass, ce, new HashSet<OWLAnnotation>()));
+                            }
+                        }
+                    } //Intersection
+                    else if (d instanceof OWLObjectIntersectionOf) {
+                        subs.add(a);
+                        for (OWLClassExpression e : d.asConjunctSet()) {
+                            adds.add(new OWLSubClassOfAxiomImpl(extendClass, e, new HashSet<OWLAnnotation>()));
+                        }
+                    } else if (d instanceof OWLObjectUnionOf) {
+                        if (d.asDisjunctSet().size() == 1) {
+                            subs.add(a);
+                            for (OWLClassExpression e : d.asDisjunctSet()) {
+                                adds.add(new OWLSubClassOfAxiomImpl(extendClass, e, new HashSet<OWLAnnotation>()));
+                            }
+                        }
+                    } else if (d instanceof OWLObjectSomeValuesFrom) {
+                        OWLObjectSomeValuesFrom r = (OWLObjectSomeValuesFrom) d;
+                        if (r.getFiller().isAnonymous()) {
+                            if (r.getFiller() instanceof OWLObjectIntersectionOf) {
+                                subs.add(a);
+                                for (OWLClassExpression e : r.getFiller().asConjunctSet()) {
+                                    adds.add(new OWLSubClassOfAxiomImpl(extendClass, new OWLObjectSomeValuesFromImpl(r.getProperty(), e), new HashSet<OWLAnnotation>()));
+                                }
+                            } else if (r.getFiller() instanceof OWLObjectUnionOf) {
+                                subs.add(a);
+                                if (r.getFiller().asDisjunctSet().size() == 1) {
+                                    for (OWLClassExpression e : r.getFiller().asDisjunctSet()) {
+                                        adds.add(new OWLSubClassOfAxiomImpl(extendClass, new OWLObjectSomeValuesFromImpl(r.getProperty(), e), new HashSet<OWLAnnotation>()));
+                                    }
+                                }
+                            }
+                        } else {
+                            if (classArray.contains(r.getFiller().asOWLClass()) && !primitives.get(classArray.indexOf(r.getFiller().asOWLClass()))) {
+                                subs.add(a);
+                                for (OWLSubClassOfAxiom ax : classDescriptions.get(classArray.indexOf(r.getFiller().asOWLClass()))) {
+                                    adds.add(new OWLSubClassOfAxiomImpl(extendClass, new OWLObjectSomeValuesFromImpl(r.getProperty(), ax.getSuperClass()), new HashSet<OWLAnnotation>()));
+                                }
+                            }
+                        }
+                    }
+                    //TODO OTHER OPTIONS (UNION, QUANTIFICATION, ETC.)
+                }
+            }
+            extendClassDescriptions.removeAll(subs);
+            extendClassDescriptions.addAll(adds);
+            if (adds.equals(subs)) {
+                done = true;
             }
         }
     }
