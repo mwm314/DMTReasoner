@@ -1,8 +1,6 @@
 package main;
 
 import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Enumeration;
 import java.util.HashSet;
 import java.util.Hashtable;
 import java.util.Iterator;
@@ -12,7 +10,6 @@ import java.util.Set;
 import org.jgraph.graph.DefaultEdge;
 import org.jgrapht.experimental.dag.*;
 import org.semanticweb.owlapi.model.AxiomType;
-import org.semanticweb.owlapi.model.ClassExpressionType;
 import org.semanticweb.owlapi.model.IRI;
 import org.semanticweb.owlapi.model.OWLAnnotation;
 import org.semanticweb.owlapi.model.OWLAxiom;
@@ -65,12 +62,12 @@ public class DMTReasoner implements OWLReasoner, OWLOntologyChangeListener {
 
     // DAGS for our class and property hierarchies. See here for why we need them:
     // http://owlapi.sourceforge.net/javadoc/org/semanticweb/owlapi/reasoner/OWLReasoner.html
-    private DirectedAcyclicGraph<Node<OWLClass>, DefaultEdge> classNodeHierarchy = new DirectedAcyclicGraph<Node<OWLClass>, DefaultEdge>(DefaultEdge.class);
-    private DirectedAcyclicGraph<Node<OWLDataProperty>, DefaultEdge> dataPropertyNodeHierarchy = new DirectedAcyclicGraph<Node<OWLDataProperty>, DefaultEdge>(DefaultEdge.class);
+    private DirectedAcyclicGraph<Node<OWLClass>, DefaultEdge> classNodeHierarchy = new DirectedAcyclicGraph<>(DefaultEdge.class);
+    private DirectedAcyclicGraph<Node<OWLDataProperty>, DefaultEdge> dataPropertyNodeHierarchy = new DirectedAcyclicGraph<>(DefaultEdge.class);
     // I'm not sure why, but it seems as if this interface is conducive
     // Node<OWLObjectPropertyExpression>, but I feel like they should be
     // Node<OWLObjectProperty>.
-    private DirectedAcyclicGraph<Node<OWLObjectPropertyExpression>, DefaultEdge> objectPropertyNodeHierarchy = new DirectedAcyclicGraph<Node<OWLObjectPropertyExpression>, DefaultEdge>(DefaultEdge.class);
+    private DirectedAcyclicGraph<Node<OWLObjectPropertyExpression>, DefaultEdge> objectPropertyNodeHierarchy = new DirectedAcyclicGraph<>(DefaultEdge.class);
 
     // A NodeSet representing the individuals
     private OWLNamedIndividualNodeSet individuals = new OWLNamedIndividualNodeSet();
@@ -138,15 +135,12 @@ public class DMTReasoner implements OWLReasoner, OWLOntologyChangeListener {
     public Node<OWLClass> getBottomClassNode() {
         Iterator<Node<OWLClass>> iter = classNodeHierarchy.iterator();
         while (iter.hasNext()) {
-
             Node<OWLClass> currentNode = iter.next();
             Set<DefaultEdge> edgeSet = classNodeHierarchy.incomingEdgesOf(currentNode);
-
             if (edgeSet.isEmpty()) {
                 // The bottom node should not have any incoming edges, so return this node
                 return currentNode;
             }
-
         }
         // We should never get here if our hierarchy is implemented correctly
         return null;
@@ -226,10 +220,8 @@ public class DMTReasoner implements OWLReasoner, OWLOntologyChangeListener {
      */
     @Override
     public NodeSet<OWLNamedIndividual> getDifferentIndividuals(OWLNamedIndividual individual) {
-
         Iterator<Node<OWLNamedIndividual>> iter = individuals.iterator();
         OWLNamedIndividualNodeSet instances = new OWLNamedIndividualNodeSet();
-
         while (iter.hasNext()) {
             Node<OWLNamedIndividual> currentNode = iter.next();
             if (!currentNode.contains(individual)) {
@@ -349,24 +341,26 @@ public class DMTReasoner implements OWLReasoner, OWLOntologyChangeListener {
      */
     @Override
     public Node<OWLClass> getEquivalentClasses(OWLClassExpression classExpr) {
+        DirectedAcyclicGraph<Node<OWLClass>, DefaultEdge> testGraph = classNodeHierarchy;
         if (classExpr.isAnonymous()) {
-            // TODO Tougher to deal with this, need to reason about anonymous class expressions.
-            return null;
-        } else {
-            // If it is not anonymous, it must be a class we already have
-            OWLClass owlclass = classExpr.asOWLClass();
-            Iterator<Node<OWLClass>> iter = classNodeHierarchy.iterator();
-
-            while (iter.hasNext()) {
-                Node<OWLClass> currentClassNode = iter.next();
-                if (currentClassNode.contains(owlclass)) {
-                    return currentClassNode;
-                }
-            }
-
-            return null;
-
+            OWLClass c = new OWLClassImpl(IRI.create("SubsumptionTestIRI"));
+            OWLSubClassOfAxiom f = new OWLSubClassOfAxiomImpl(c, classExpr, new HashSet<OWLAnnotation>());
+            testGraph = new DirectedAcyclicGraph<>(DefaultEdge.class);
+            reasonClasses(f, testGraph);
         }
+        // If it is not anonymous, it must be a class we already have
+        OWLClass owlclass = classExpr.asOWLClass();
+        Iterator<Node<OWLClass>> iter = testGraph.iterator();
+
+        while (iter.hasNext()) {
+            Node<OWLClass> currentClassNode = iter.next();
+            if (currentClassNode.contains(owlclass)) {
+                return currentClassNode;
+            }
+        }
+
+        return null;
+
     }
 
     @Override
@@ -854,7 +848,7 @@ public class DMTReasoner implements OWLReasoner, OWLOntologyChangeListener {
     public boolean isSatisfiable(OWLClassExpression classExpr) {
         OWLClass c = new OWLClassImpl(IRI.create("SatisfiabilityTestIRI"));
         OWLSubClassOfAxiom f = new OWLSubClassOfAxiomImpl(c, classExpr, new HashSet<OWLAnnotation>());
-        Set<OWLSubClassOfAxiom> results = reasonClasses(f, false).get(c);
+        Set<OWLSubClassOfAxiom> results = reasonClasses(f, null).get(c);
         HashSet<OWLClassExpression> test = new HashSet<>();
         for (OWLSubClassOfAxiom ax : results) {
             test.add(ax.getSuperClass());
@@ -917,13 +911,13 @@ public class DMTReasoner implements OWLReasoner, OWLOntologyChangeListener {
     }
 
     private void reason() {
-        reasonClasses(null, true);
+        reasonClasses(null, classNodeHierarchy);
         /*reasonProperties();
          reasonDataproperties();
          */
     }
 
-    private Hashtable<OWLClass, Set<OWLSubClassOfAxiom>> reasonClasses(OWLSubClassOfAxiom test, boolean updateDag) {
+    private Hashtable<OWLClass, Set<OWLSubClassOfAxiom>> reasonClasses(OWLSubClassOfAxiom test, DirectedAcyclicGraph<Node<OWLClass>, DefaultEdge> hierarchy) {
         Set<OWLClass> classes = ontology.getClassesInSignature();
         if (test != null) {
             classes.add(test.getSubClass().asOWLClass());
@@ -1035,6 +1029,32 @@ public class DMTReasoner implements OWLReasoner, OWLOntologyChangeListener {
                 }
             }
         }
+        //Satisfiability
+        for (int i = 0; i < classArray.size(); i++) {
+            HashSet<OWLClassExpression> satis = new HashSet<>();
+            for (OWLSubClassOfAxiom ax : classDescriptions.get(i)) {
+                satis.add(ax.getSuperClass());
+                if (!ax.getSuperClass().isAnonymous()) {
+                    String iri = ax.getSuperClass().asOWLClass().getIRI().toString();
+                    if (iri.endsWith("*")) {
+                        iri = iri.substring(0, iri.length() - 1);
+                        OWLClass destar = new OWLClassImpl(IRI.create(iri));
+                        satis.add(destar);
+                    }
+                }
+            }
+            boolean satisfiable = true;
+            for (OWLClassExpression ex : satis) {
+                if (satis.contains(ex.getComplementNNF())) {
+                    satisfiable = false;
+                    break;
+                }
+            }
+            if (!satisfiable) {
+                subsumptions.get(i).addAll(OWLClassNode.getBottomNode().getEntities());
+            }
+        }
+
         Hashtable<OWLClass, Set<OWLSubClassOfAxiom>> expressions = new Hashtable<>();
 
         for (int i = 0; i < classArray.size(); i++) {
@@ -1045,9 +1065,9 @@ public class DMTReasoner implements OWLReasoner, OWLOntologyChangeListener {
             }
             expressions.put(classArray.get(i), classDescriptions.get(i));
         }
-        if (updateDag) {
-            buildDAG(subsumptions, classArray, null);
-            System.out.println(classNodeHierarchy);
+        if (hierarchy != null) {
+            buildClassDAG(hierarchy, subsumptions, classArray, null);
+            System.out.println(hierarchy);
         }
         return expressions;
     }
@@ -1060,18 +1080,19 @@ public class DMTReasoner implements OWLReasoner, OWLOntologyChangeListener {
         throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
     }
 
-    private void buildDAG(ArrayList<ArrayList<OWLClass>> subsumptions, ArrayList<OWLClass> classes, OWLClassNode vertex) {
-        if (classNodeHierarchy.vertexSet().isEmpty()) {
-            classNodeHierarchy.addVertex(OWLClassNode.getTopNode());
+    private void buildClassDAG(DirectedAcyclicGraph<Node<OWLClass>, DefaultEdge> hierarchy, ArrayList<ArrayList<OWLClass>> subsumptions, ArrayList<OWLClass> classes, OWLClassNode vertex) {
+        if (hierarchy.vertexSet().isEmpty()) {
+            hierarchy.addVertex(OWLClassNode.getTopNode());
+            hierarchy.addVertex(OWLClassNode.getBottomNode());
         }
         if (!subsumptions.isEmpty()) {
-            if (vertex == null) {
-                for (int i = 0; i < subsumptions.size(); i++) {
+            for (int i = 0; i < subsumptions.size(); i++) {
+                if (vertex == null) {
                     if (subsumptions.get(i).isEmpty()) {
                         OWLClassNode v = new OWLClassNode(classes.get(i));
-                        classNodeHierarchy.addVertex(v);
+                        hierarchy.addVertex(v);
                         try {
-                            classNodeHierarchy.addDagEdge(v, OWLClassNode.getTopNode());
+                            hierarchy.addDagEdge(v, OWLClassNode.getTopNode());
                         } catch (DirectedAcyclicGraph.CycleFoundException ex) {
                             System.out.println(ex);
                         }
@@ -1082,18 +1103,17 @@ public class DMTReasoner implements OWLReasoner, OWLOntologyChangeListener {
                         temp.remove(i);
                         ArrayList<OWLClass> tempClasses = (ArrayList<OWLClass>) classes.clone();
                         tempClasses.remove(i);
-                        buildDAG(temp, tempClasses, v);
+                        buildClassDAG(hierarchy, temp, tempClasses, v);
                     }
-                }
-            } else {
-                for (int i = 0; i < subsumptions.size(); i++) {
+                } else {
                     if (subsumptions.get(i).contains(vertex.getRepresentativeElement())) {
                         OWLClassNode v = new OWLClassNode(classes.get(i));
-                        classNodeHierarchy.addVertex(v);
+                        hierarchy.addVertex(v);
                         try {
-                            classNodeHierarchy.addDagEdge(v, vertex);
+                            hierarchy.addDagEdge(v, vertex);
                         } catch (DirectedAcyclicGraph.CycleFoundException ex) {
-                            System.out.println(ex);
+                            hierarchy.removeVertex(v);
+                            vertex.add(classes.get(i));
                         }
                         ArrayList<ArrayList<OWLClass>> temp = new ArrayList<>();
                         for (int j = 0; j < subsumptions.size(); j++) {
@@ -1106,18 +1126,17 @@ public class DMTReasoner implements OWLReasoner, OWLOntologyChangeListener {
                         } else {
                             temp.get(i).remove(vertex.getRepresentativeElement());
                         }
-                        buildDAG(temp, tempClasses, v);
+                        buildClassDAG(hierarchy, temp, tempClasses, v);
                     }
                 }
             }
-        }
-        classNodeHierarchy.addVertex(OWLClassNode.getBottomNode());
-        for (Node<OWLClass> node : classNodeHierarchy.vertexSet()) {
-            if (classNodeHierarchy.inDegreeOf(node) == 0 && classNodeHierarchy.outDegreeOf(node) > 0 && !node.equals(OWLClassNode.getBottomNode())) {
-                try {
-                    classNodeHierarchy.addDagEdge(OWLClassNode.getBottomNode(), node);
-                } catch (DirectedAcyclicGraph.CycleFoundException ex) {
-                    System.out.println(ex);
+            for (Node<OWLClass> node : hierarchy.vertexSet()) {
+                if (hierarchy.inDegreeOf(node) == 0 && hierarchy.outDegreeOf(node) > 0 && !node.equals(OWLClassNode.getBottomNode())) {
+                    try {
+                        hierarchy.addDagEdge(OWLClassNode.getBottomNode(), node);
+                    } catch (DirectedAcyclicGraph.CycleFoundException ex) {
+                        System.out.println(ex);
+                    }
                 }
             }
         }
