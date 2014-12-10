@@ -78,9 +78,7 @@ public class DMTReasoner implements OWLReasoner, OWLOntologyChangeListener {
 
     // Given axioms from the ontology
     private Set<OWLAxiom> axioms;
-
-       // These have to be attached to a hierarchy of some kind
-	/*
+    /*
      * private OWLClassNode bottomClassNode = OWLClassNode.getBottomNode(); private OWLDataPropertyNode bottomDataPropertyNode = OWLDataPropertyNode.getBottomNode(); private OWLObjectPropertyNode bottomObjectPropertyNode = OWLObjectPropertyNode.getBottomNode();
      * 
      * private OWLClassNode topClassNode = OWLClassNode.getTopNode(); private OWLDataPropertyNode topDataPropertyNode = OWLDataPropertyNode.getTopNode(); private OWLObjectPropertyNode topObjectPropertyNode = OWLObjectPropertyNode.getTopNode();
@@ -899,7 +897,11 @@ public class DMTReasoner implements OWLReasoner, OWLOntologyChangeListener {
         ArrayList<Set<OWLSubClassOfAxiom>> classDescriptions = new ArrayList<>();
         ArrayList<Boolean> primitives = new ArrayList<>();
         for (OWLClass c : classes) {
-            classDescriptions.add(ontology.getSubClassAxiomsForSubClass(c));
+            if (ontology.getSubClassAxiomsForSubClass(c).isEmpty()) {
+                classDescriptions.add(new HashSet<OWLSubClassOfAxiom>());
+            } else {
+                classDescriptions.add(ontology.getSubClassAxiomsForSubClass(c));
+            }
             primitives.add(Boolean.TRUE);
         }
         ArrayList<OWLClass> classArray = new ArrayList<>();
