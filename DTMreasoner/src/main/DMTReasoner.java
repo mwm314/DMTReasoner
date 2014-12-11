@@ -108,6 +108,14 @@ public class DMTReasoner implements OWLReasoner, OWLOntologyChangeListener {
     public void setClassNodeHierarchy(DirectedAcyclicGraph<Node<OWLClass>, DefaultEdge> classNodeHierarchy) {
         this.classNodeHierarchy = classNodeHierarchy;
     }
+    
+    public void setDataPropertyNodeHierarchy(DirectedAcyclicGraph<Node<OWLDataProperty>, DefaultEdge> dataPropertyNodeHierarchy) {
+        this.dataPropertyNodeHierarchy = dataPropertyNodeHierarchy;
+    }
+    
+    public void setObjectPropertyNodeHierarchy(DirectedAcyclicGraph<Node<OWLObjectPropertyExpression>, DefaultEdge> objectProbertyNodeHierarchy) {
+        this.objectPropertyNodeHierarchy = objectPropertyNodeHierarchy;
+    }
 
     @Override
     public void dispose() {
