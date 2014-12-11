@@ -113,8 +113,8 @@ public class DMTReasoner implements OWLReasoner, OWLOntologyChangeListener {
         this.dataPropertyNodeHierarchy = dataPropertyNodeHierarchy;
     }
     
-    public void setObjectPropertyNodeHierarchy(DirectedAcyclicGraph<Node<OWLObjectPropertyExpression>, DefaultEdge> objectProbertyNodeHierarchy) {
-        this.objectPropertyNodeHierarchy = objectProbertyNodeHierarchy;
+    public void setObjectPropertyNodeHierarchy(DirectedAcyclicGraph<Node<OWLObjectPropertyExpression>, DefaultEdge> objectPropertyNodeHierarchy) {
+        this.objectPropertyNodeHierarchy = objectPropertyNodeHierarchy;
     }
 
     @Override
@@ -1363,7 +1363,7 @@ public class DMTReasoner implements OWLReasoner, OWLOntologyChangeListener {
                             subs.add(a);
                             for (OWLClassExpression e : d.asConjunctSet()) {
                                 adds.add(new OWLSubClassOfAxiomImpl(extendClass, e, new HashSet<OWLAnnotation>()));
-                            } //Union (NOT IMPLEMENTED REALLY)
+                            } //Union
                         } else if (d instanceof OWLObjectUnionOf) {
                             subs.add(a);
                             for (OWLClassExpression e : d.asDisjunctSet()) {
