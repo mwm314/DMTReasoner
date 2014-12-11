@@ -77,7 +77,7 @@ public class TestOntologyRead {
                 OWLReasoner reasoner = new DMTReasonerFactory().createReasoner(ont3);
                 HashSet<OWLClassExpression> union = new HashSet<>();
                 union.add(classes.toArray(new OWLClass[0])[0]);
-                union.add(classes.toArray(new OWLClass[0])[3]);
+                union.add(classes.toArray(new OWLClass[0])[8].getComplementNNF());
                 System.out.println(reasoner.isSatisfiable(new OWLObjectIntersectionOfImpl(union)));
                 System.out.println(union);
 		//test();

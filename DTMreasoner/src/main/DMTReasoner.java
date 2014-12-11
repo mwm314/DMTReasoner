@@ -24,8 +24,12 @@ import org.semanticweb.owlapi.model.OWLException;
 import org.semanticweb.owlapi.model.OWLLiteral;
 import org.semanticweb.owlapi.model.OWLNamedIndividual;
 import org.semanticweb.owlapi.model.OWLObjectAllValuesFrom;
+import org.semanticweb.owlapi.model.OWLObjectCardinalityRestriction;
 import org.semanticweb.owlapi.model.OWLObjectComplementOf;
+import org.semanticweb.owlapi.model.OWLObjectExactCardinality;
 import org.semanticweb.owlapi.model.OWLObjectIntersectionOf;
+import org.semanticweb.owlapi.model.OWLObjectMaxCardinality;
+import org.semanticweb.owlapi.model.OWLObjectMinCardinality;
 import org.semanticweb.owlapi.model.OWLObjectProperty;
 import org.semanticweb.owlapi.model.OWLObjectPropertyExpression;
 import org.semanticweb.owlapi.model.OWLObjectSomeValuesFrom;
@@ -51,6 +55,8 @@ import org.semanticweb.owlapi.reasoner.impl.OWLObjectPropertyNodeSet;
 import org.semanticweb.owlapi.util.Version;
 import uk.ac.manchester.cs.owl.owlapi.OWLClassImpl;
 import uk.ac.manchester.cs.owl.owlapi.OWLObjectAllValuesFromImpl;
+import uk.ac.manchester.cs.owl.owlapi.OWLObjectMaxCardinalityImpl;
+import uk.ac.manchester.cs.owl.owlapi.OWLObjectMinCardinalityImpl;
 import uk.ac.manchester.cs.owl.owlapi.OWLObjectSomeValuesFromImpl;
 import uk.ac.manchester.cs.owl.owlapi.OWLObjectUnionOfImpl;
 import uk.ac.manchester.cs.owl.owlapi.OWLSubClassOfAxiomImpl;
@@ -108,11 +114,11 @@ public class DMTReasoner implements OWLReasoner, OWLOntologyChangeListener {
     public void setClassNodeHierarchy(DirectedAcyclicGraph<Node<OWLClass>, DefaultEdge> classNodeHierarchy) {
         this.classNodeHierarchy = classNodeHierarchy;
     }
-    
+
     public void setDataPropertyNodeHierarchy(DirectedAcyclicGraph<Node<OWLDataProperty>, DefaultEdge> dataPropertyNodeHierarchy) {
         this.dataPropertyNodeHierarchy = dataPropertyNodeHierarchy;
     }
-    
+
     public void setObjectPropertyNodeHierarchy(DirectedAcyclicGraph<Node<OWLObjectPropertyExpression>, DefaultEdge> objectPropertyNodeHierarchy) {
         this.objectPropertyNodeHierarchy = objectPropertyNodeHierarchy;
     }
@@ -928,6 +934,32 @@ public class DMTReasoner implements OWLReasoner, OWLOntologyChangeListener {
                     }
                 }
             }
+            if(ex instanceof OWLObjectMaxCardinality){
+                OWLObjectMaxCardinality k = (OWLObjectMaxCardinality) ex;
+                for(OWLClassExpression ex2 : satis){
+                    if(ex2 instanceof OWLObjectMinCardinality){
+                        OWLObjectMinCardinality j = (OWLObjectMinCardinality) ex2;
+                        if(k.getFiller().equals(j.getFiller())){
+                            if(k.getCardinality() > j.getCardinality()){
+                                return false;
+                            }
+                        }
+                    }
+                }
+            }
+            if(ex instanceof OWLObjectMinCardinality){
+                OWLObjectMinCardinality k = (OWLObjectMinCardinality) ex;
+                for(OWLClassExpression ex2 : satis){
+                    if(ex2 instanceof OWLObjectMaxCardinality){
+                        OWLObjectMaxCardinality j = (OWLObjectMaxCardinality) ex2;
+                        if(k.getFiller().equals(j.getFiller())){
+                            if(k.getCardinality() < j.getCardinality()){
+                                return false;
+                            }
+                        }
+                    }
+                }
+            }
         }
         return true;
     }
@@ -1089,6 +1121,18 @@ public class DMTReasoner implements OWLReasoner, OWLOntologyChangeListener {
         for (int i = 0; i < classDescriptions.size(); i++) {
             subclassLists.add(new ArrayList<OWLClassExpression>());
             for (OWLSubClassOfAxiom a : classDescriptions.get(i)) {
+                if(a.getSuperClass() instanceof OWLObjectMaxCardinality){
+                    OWLObjectMaxCardinality w = (OWLObjectMaxCardinality) a.getSuperClass();
+                    if(w.getCardinality() == 0){
+                        subclassLists.get(i).add(new OWLObjectAllValuesFromImpl(w.getProperty(), w.getFiller().getComplementNNF()));
+                    }
+                }
+                if(a.getSuperClass() instanceof OWLObjectMinCardinality){
+                    OWLObjectMinCardinality w = (OWLObjectMinCardinality) a.getSuperClass();
+                    if(w.getCardinality() >= 1){
+                        subclassLists.get(i).add(new OWLObjectSomeValuesFromImpl(w.getProperty(), w.getFiller()));
+                    }
+                }
                 subclassLists.get(i).add(a.getSuperClass());
             }
         }
@@ -1102,7 +1146,7 @@ public class DMTReasoner implements OWLReasoner, OWLOntologyChangeListener {
                 if (i != j) {
                     boolean subsumed = true;
                     for (OWLClassExpression a : subclassLists.get(j)) {
-                        if (!subclassLists.get(i).contains(a)) {
+                        if (!matches(subclassLists.get(i), a)) {
                             subsumed = false;
                             break;
                         }
@@ -1208,124 +1252,22 @@ public class DMTReasoner implements OWLReasoner, OWLOntologyChangeListener {
     }
 
     private ArrayList<Set<OWLSubClassOfAxiom>> extend(final OWLClass extendClass, final Set<OWLSubClassOfAxiom> eCD, ArrayList<OWLClass> classArray, final ArrayList<Set<OWLSubClassOfAxiom>> classDescriptions, final ArrayList<Boolean> primitives) {
-        ArrayList<Set<OWLSubClassOfAxiom>> interpretations = new ArrayList<>();
-        Set<OWLSubClassOfAxiom> extendClassDescriptions = new HashSet<>(eCD);
-        boolean done = false;
-        while (!done) {
-            ArrayList<OWLSubClassOfAxiom> adds = new ArrayList<>();
-            ArrayList<OWLSubClassOfAxiom> subs = new ArrayList<>();
-            for (OWLSubClassOfAxiom a : extendClassDescriptions) {
-                OWLClassExpression d = a.getSuperClass().getNNF();
-                if (!d.isAnonymous()) {
-                    if (classArray.contains(d.asOWLClass()) && !d.asOWLClass().equals(extendClass)) {
-                        subs.add(a);
-                        for (OWLSubClassOfAxiom ax : classDescriptions.get(classArray.indexOf(d.asOWLClass()))) {
-                            adds.add(new OWLSubClassOfAxiomImpl(extendClass, ax.getSuperClass(), new HashSet<OWLAnnotation>()));
-                        }
-                    }
-                } else {
-                    //Atomic negation
-                    if (d.isClassExpressionLiteral()) {
-                        OWLClass negated = d.getComplementNNF().asOWLClass();
-                        if (classArray.contains(negated)) {
-                            if (!primitives.get(classArray.indexOf(negated)) && !extendClass.equals(negated)) {
-                                subs.add(a);
-                                HashSet<OWLClassExpression> de = new HashSet<>();
-                                for (OWLSubClassOfAxiom ax : classDescriptions.get(classArray.indexOf(negated))) {
-                                    de.add(ax.getSuperClass().getComplementNNF());
-                                }
-                                OWLObjectUnionOfImpl ce = new OWLObjectUnionOfImpl(de);
-                                adds.add(new OWLSubClassOfAxiomImpl(extendClass, ce, new HashSet<OWLAnnotation>()));
-                            }
-                        }
-                    } //General negation
-                    else {
-                        if (d instanceof OWLObjectComplementOf) {
-                            d = d.getNNF();
-                        }
-                        if (d instanceof OWLObjectIntersectionOf) {
-                            subs.add(a);
-                            for (OWLClassExpression e : d.asConjunctSet()) {
-                                adds.add(new OWLSubClassOfAxiomImpl(extendClass, e, new HashSet<OWLAnnotation>()));
-                            } //Union (NOT IMPLEMENTED REALLY)
-                        } else if (d instanceof OWLObjectUnionOf) {
-                            subs.add(a);
-                            for (OWLClassExpression e : d.asDisjunctSet()) {
-                                interpretations.addAll(recurseExtend(extendClass, extendClassDescriptions, classArray, classDescriptions, primitives, new OWLSubClassOfAxiomImpl(extendClass, e, new HashSet<OWLAnnotation>()), subs));
-                            }
-                            return interpretations;
-                        } else if (d instanceof OWLObjectSomeValuesFrom) {
-                            OWLObjectSomeValuesFrom r = (OWLObjectSomeValuesFrom) d;
-                            if (r.getFiller().isAnonymous()) {
-                                if (r.getFiller() instanceof OWLObjectIntersectionOf) {
-                                    subs.add(a);
-                                    for (OWLClassExpression e : r.getFiller().asConjunctSet()) {
-                                        adds.add(new OWLSubClassOfAxiomImpl(extendClass, new OWLObjectSomeValuesFromImpl(r.getProperty(), e), new HashSet<OWLAnnotation>()));
-                                    }
-                                } else if (r.getFiller() instanceof OWLObjectUnionOf) {
-                                    subs.add(a);
-                                    if (r.getFiller().asDisjunctSet().size() == 1) {
-                                        for (OWLClassExpression e : r.getFiller().asDisjunctSet()) {
-                                            adds.add(new OWLSubClassOfAxiomImpl(extendClass, new OWLObjectSomeValuesFromImpl(r.getProperty(), e), new HashSet<OWLAnnotation>()));
-                                        }
-                                    }
-                                }
-                            } else {
-                                if (classArray.contains(r.getFiller().asOWLClass()) && !primitives.get(classArray.indexOf(r.getFiller().asOWLClass()))) {
-                                    subs.add(a);
-                                    for (OWLSubClassOfAxiom ax : classDescriptions.get(classArray.indexOf(r.getFiller().asOWLClass()))) {
-                                        adds.add(new OWLSubClassOfAxiomImpl(extendClass, new OWLObjectSomeValuesFromImpl(r.getProperty(), ax.getSuperClass()), new HashSet<OWLAnnotation>()));
-                                    }
-                                }
-                            } //Universal Q
-                        } else if (d instanceof OWLObjectAllValuesFrom) {
-                            OWLObjectAllValuesFrom r = (OWLObjectAllValuesFrom) d;
-                            if (r.getFiller().isAnonymous()) {
-                                if (r.getFiller() instanceof OWLObjectIntersectionOf) {
-                                    subs.add(a);
-                                    for (OWLClassExpression e : r.getFiller().asConjunctSet()) {
-                                        adds.add(new OWLSubClassOfAxiomImpl(extendClass, new OWLObjectAllValuesFromImpl(r.getProperty(), e), new HashSet<OWLAnnotation>()));
-                                    }
-                                } else if (r.getFiller() instanceof OWLObjectUnionOf) {
-                                    subs.add(a);
-                                    if (r.getFiller().asDisjunctSet().size() == 1) {
-                                        for (OWLClassExpression e : r.getFiller().asDisjunctSet()) {
-                                            adds.add(new OWLSubClassOfAxiomImpl(extendClass, new OWLObjectAllValuesFromImpl(r.getProperty(), e), new HashSet<OWLAnnotation>()));
-                                        }
-                                    }
-                                }
-                            } else {
-                                if (classArray.contains(r.getFiller().asOWLClass()) && !primitives.get(classArray.indexOf(r.getFiller().asOWLClass()))) {
-                                    subs.add(a);
-                                    for (OWLSubClassOfAxiom ax : classDescriptions.get(classArray.indexOf(r.getFiller().asOWLClass()))) {
-                                        adds.add(new OWLSubClassOfAxiomImpl(extendClass, new OWLObjectAllValuesFromImpl(r.getProperty(), ax.getSuperClass()), new HashSet<OWLAnnotation>()));
-                                    }
-                                }
-                            }
-                        }
-                        //TODO OTHER OPTIONS (UNION, QUANTIFICATION, ETC.)
-                    }
-                }
-            }
-            extendClassDescriptions.removeAll(subs);
-            extendClassDescriptions.addAll(adds);
-            if (adds.equals(subs)) {
-                done = true;
-            }
-        }
-        interpretations.add(extendClassDescriptions);
-        return interpretations;
+        return recurseExtend(extendClass, eCD, classArray, classDescriptions, primitives, null, null);
     }
 
     private ArrayList<Set<OWLSubClassOfAxiom>> recurseExtend(final OWLClass extendClass, final Set<OWLSubClassOfAxiom> eCD, final ArrayList<OWLClass> classArray, ArrayList<Set<OWLSubClassOfAxiom>> classDescriptions, final ArrayList<Boolean> primitives, final OWLSubClassOfAxiomImpl add, final ArrayList<OWLSubClassOfAxiom> sub) {
         ArrayList<Set<OWLSubClassOfAxiom>> interpretations = new ArrayList<>();
         Set<OWLSubClassOfAxiom> extendClassDescriptions = new HashSet<>(eCD);
-        for (OWLSubClassOfAxiom bx : sub) {
-            if (bx.getSuperClass() instanceof OWLObjectUnionOf) {
-                extendClassDescriptions.remove(bx);
+        if (sub != null) {
+            for (OWLSubClassOfAxiom bx : sub) {
+                if (bx.getSuperClass() instanceof OWLObjectUnionOf) {
+                    extendClassDescriptions.remove(bx);
+                }
             }
         }
-        extendClassDescriptions.add(add);
+        if (add != null) {
+            extendClassDescriptions.add(add);
+        }
         boolean done = false;
         while (!done) {
             ArrayList<OWLSubClassOfAxiom> adds = new ArrayList<>();
@@ -1369,7 +1311,7 @@ public class DMTReasoner implements OWLReasoner, OWLOntologyChangeListener {
                             for (OWLClassExpression e : d.asDisjunctSet()) {
                                 interpretations.addAll(recurseExtend(extendClass, extendClassDescriptions, classArray, classDescriptions, primitives, new OWLSubClassOfAxiomImpl(extendClass, e, new HashSet<OWLAnnotation>()), subs));
                             }
-                            return interpretations;
+                            return interpretations; //Existential Q
                         } else if (d instanceof OWLObjectSomeValuesFrom) {
                             OWLObjectSomeValuesFrom r = (OWLObjectSomeValuesFrom) d;
                             if (r.getFiller().isAnonymous()) {
@@ -1380,11 +1322,10 @@ public class DMTReasoner implements OWLReasoner, OWLOntologyChangeListener {
                                     }
                                 } else if (r.getFiller() instanceof OWLObjectUnionOf) {
                                     subs.add(a);
-                                    if (r.getFiller().asDisjunctSet().size() == 1) {
-                                        for (OWLClassExpression e : r.getFiller().asDisjunctSet()) {
-                                            adds.add(new OWLSubClassOfAxiomImpl(extendClass, new OWLObjectSomeValuesFromImpl(r.getProperty(), e), new HashSet<OWLAnnotation>()));
-                                        }
+                                    for (OWLClassExpression e : r.getFiller().asDisjunctSet()) {
+                                        interpretations.addAll(recurseExtend(extendClass, extendClassDescriptions, classArray, classDescriptions, primitives, new OWLSubClassOfAxiomImpl(extendClass, new OWLObjectSomeValuesFromImpl(r.getProperty(), e), new HashSet<OWLAnnotation>()), subs));
                                     }
+                                    return interpretations;
                                 }
                             } else {
                                 if (classArray.contains(r.getFiller().asOWLClass()) && !primitives.get(classArray.indexOf(r.getFiller().asOWLClass()))) {
@@ -1404,17 +1345,56 @@ public class DMTReasoner implements OWLReasoner, OWLOntologyChangeListener {
                                     }
                                 } else if (r.getFiller() instanceof OWLObjectUnionOf) {
                                     subs.add(a);
-                                    if (r.getFiller().asDisjunctSet().size() == 1) {
-                                        for (OWLClassExpression e : r.getFiller().asDisjunctSet()) {
-                                            adds.add(new OWLSubClassOfAxiomImpl(extendClass, new OWLObjectAllValuesFromImpl(r.getProperty(), e), new HashSet<OWLAnnotation>()));
-                                        }
+                                    for (OWLClassExpression e : r.getFiller().asDisjunctSet()) {
+                                        interpretations.addAll(recurseExtend(extendClass, extendClassDescriptions, classArray, classDescriptions, primitives, new OWLSubClassOfAxiomImpl(extendClass, new OWLObjectAllValuesFromImpl(r.getProperty(), e), new HashSet<OWLAnnotation>()), subs));
                                     }
+                                    return interpretations;
                                 }
                             } else {
                                 if (classArray.contains(r.getFiller().asOWLClass()) && !primitives.get(classArray.indexOf(r.getFiller().asOWLClass()))) {
                                     subs.add(a);
                                     for (OWLSubClassOfAxiom ax : classDescriptions.get(classArray.indexOf(r.getFiller().asOWLClass()))) {
                                         adds.add(new OWLSubClassOfAxiomImpl(extendClass, new OWLObjectAllValuesFromImpl(r.getProperty(), ax.getSuperClass()), new HashSet<OWLAnnotation>()));
+
+                                    }
+                                }
+                            }
+                        } else if (d instanceof OWLObjectExactCardinality) {
+                            OWLObjectExactCardinality r = (OWLObjectExactCardinality) d;
+                            subs.add(a);
+                            adds.add(new OWLSubClassOfAxiomImpl(extendClass, r.asIntersectionOfMinMax(), new HashSet<OWLAnnotation>()));
+                        } else if (d instanceof OWLObjectCardinalityRestriction) {
+                            OWLObjectCardinalityRestriction r = (OWLObjectCardinalityRestriction) d;
+                            if (r.getFiller().isAnonymous()) {
+                                if (r.getFiller() instanceof OWLObjectIntersectionOf) {
+                                    subs.add(a);
+                                    for (OWLClassExpression e : r.getFiller().asConjunctSet()) {
+                                        if (r instanceof OWLObjectMaxCardinality) {
+                                            adds.add(new OWLSubClassOfAxiomImpl(extendClass, new OWLObjectMaxCardinalityImpl(r.getProperty(), r.getCardinality(), e), new HashSet<OWLAnnotation>()));
+                                        } else {
+                                            adds.add(new OWLSubClassOfAxiomImpl(extendClass, new OWLObjectMinCardinalityImpl(r.getProperty(), r.getCardinality(), e), new HashSet<OWLAnnotation>()));
+                                        }
+                                    }
+                                } else if (r.getFiller() instanceof OWLObjectUnionOf) {
+                                    subs.add(a);
+                                    for (OWLClassExpression e : r.getFiller().asDisjunctSet()) {
+                                        if (r instanceof OWLObjectMaxCardinality) {
+                                            interpretations.addAll(recurseExtend(extendClass, extendClassDescriptions, classArray, classDescriptions, primitives, new OWLSubClassOfAxiomImpl(extendClass, new OWLObjectMaxCardinalityImpl(r.getProperty(), r.getCardinality(), e), new HashSet<OWLAnnotation>()), subs));
+                                        } else {
+                                            interpretations.addAll(recurseExtend(extendClass, extendClassDescriptions, classArray, classDescriptions, primitives, new OWLSubClassOfAxiomImpl(extendClass, new OWLObjectMinCardinalityImpl(r.getProperty(), r.getCardinality(), e), new HashSet<OWLAnnotation>()), subs));
+                                        }
+                                    }
+                                    return interpretations;
+                                }
+                            } else {
+                                if (classArray.contains(r.getFiller().asOWLClass()) && !primitives.get(classArray.indexOf(r.getFiller().asOWLClass()))) {
+                                    subs.add(a);
+                                    for (OWLSubClassOfAxiom ax : classDescriptions.get(classArray.indexOf(r.getFiller().asOWLClass()))) {
+                                        if (r instanceof OWLObjectMaxCardinality) {
+                                            adds.add(new OWLSubClassOfAxiomImpl(extendClass, new OWLObjectMaxCardinalityImpl(r.getProperty(), r.getCardinality(), ax.getSuperClass()), new HashSet<OWLAnnotation>()));
+                                        } else {
+                                            adds.add(new OWLSubClassOfAxiomImpl(extendClass, new OWLObjectMinCardinalityImpl(r.getProperty(), r.getCardinality(), ax.getSuperClass()), new HashSet<OWLAnnotation>()));
+                                        }
                                     }
                                 }
                             }
@@ -1430,5 +1410,56 @@ public class DMTReasoner implements OWLReasoner, OWLOntologyChangeListener {
         }
         interpretations.add(extendClassDescriptions);
         return interpretations;
+    }
+
+    private boolean matches(ArrayList<OWLClassExpression> list, OWLClassExpression a) {
+        if (list.contains(a)) {
+            return true;
+        }
+        if (a instanceof OWLObjectSomeValuesFrom) {
+            OWLObjectSomeValuesFrom k = (OWLObjectSomeValuesFrom) a;
+            if (k.getFiller() instanceof OWLObjectComplementOf) {
+                if (list.contains(new OWLObjectAllValuesFromImpl(k.getProperty(), k.getFiller().getObjectComplementOf()))) {
+                    return true;
+                }
+            }
+        }
+        if (a instanceof OWLObjectAllValuesFrom) {
+            OWLObjectAllValuesFrom k = (OWLObjectAllValuesFrom) a;
+            if (k.getFiller() instanceof OWLObjectComplementOf) {
+                if (list.contains(new OWLObjectSomeValuesFromImpl(k.getProperty(), k.getFiller().getObjectComplementOf()))) {
+                    return true;
+                }
+            }
+        }
+        if (a instanceof OWLObjectMaxCardinality) {
+            OWLObjectMaxCardinality k = (OWLObjectMaxCardinality) a;
+            for (OWLClassExpression elem : list) {
+                if (elem instanceof OWLObjectMaxCardinality) {
+                    OWLObjectMaxCardinality j = (OWLObjectMaxCardinality) elem;
+                    if (j.getFiller().equals(k.getFiller())) {
+                        if (j.getCardinality() <= k.getCardinality()) {
+                            return true;
+                        }
+                    }
+                }
+            }
+
+        }
+        if (a instanceof OWLObjectMinCardinality) {
+            OWLObjectMinCardinality k = (OWLObjectMinCardinality) a;
+            for (OWLClassExpression elem : list) {
+                if (elem instanceof OWLObjectMinCardinality) {
+                    OWLObjectMinCardinality j = (OWLObjectMinCardinality) elem;
+                    if (j.getFiller().equals(k.getFiller())) {
+                        if (j.getCardinality() >= k.getCardinality()) {
+                            return true;
+                        }
+                    }
+                }
+            }
+
+        }
+        return false;
     }
 }
