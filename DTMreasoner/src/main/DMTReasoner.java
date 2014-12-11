@@ -114,7 +114,7 @@ public class DMTReasoner implements OWLReasoner, OWLOntologyChangeListener {
     }
     
     public void setObjectPropertyNodeHierarchy(DirectedAcyclicGraph<Node<OWLObjectPropertyExpression>, DefaultEdge> objectProbertyNodeHierarchy) {
-        this.objectPropertyNodeHierarchy = objectPropertyNodeHierarchy;
+        this.objectPropertyNodeHierarchy = objectProbertyNodeHierarchy;
     }
 
     @Override
